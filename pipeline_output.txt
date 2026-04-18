@@ -1,0 +1,258 @@
+2026-04-18 09:59:07,394 - INFO - 
+================================================================================
+2026-04-18 09:59:07,394 - INFO - STEAM GAMES PREPROCESSING PIPELINE
+2026-04-18 09:59:07,394 - INFO - ================================================================================
+2026-04-18 09:59:07,394 - INFO - Data: 2026-04-18 09:59:07
+2026-04-18 09:59:07,394 - INFO - ================================================================================
+2026-04-18 09:59:07,395 - INFO - 
+Ustawienia:
+2026-04-18 09:59:07,395 - INFO -   Katalog projektu: C:\Users\matth\OneDrive\Atlantis\ml-project-steam
+2026-04-18 09:59:07,395 - INFO -   Liczba krokow: 5
+2026-04-18 09:59:07,396 - INFO - 
+================================================================================
+2026-04-18 09:59:07,396 - INFO - KROK: Eksploracja danych
+2026-04-18 09:59:07,396 - INFO - Skrypt: 02_data_exploration.py
+2026-04-18 09:59:07,396 - INFO - ================================================================================
+
+================================================================================
+EKSPLORACJA DANYCH - STEAM GAMES DATASET
+================================================================================
+
+Ladowanie danych z: games_20260418_093359.csv
+
+[OK] Zaladowano dane: 122611 wierszy, 40 kolumn
+
+================================================================================
+INFORMACJE O KOLUMNACH
+================================================================================
+
+Kolumny do preprocessingu (18):
+--------------------------------------------------------------------------------
+  * AppID                     | Type: object     | Braki:       1 (  0.0%) | Sample: Black Dragon Mage Playtest
+  * Name                      | Type: object     | Braki:       0 (  0.0%) | Sample: Aug 1, 2023
+  * Release date              | Type: object     | Braki:       0 (  0.0%) | Sample: 0 - 0
+  * Price                     | Type: int64      | Braki:       0 (  0.0%) | Sample: 18.353663211294254
+  * Windows                   | Type: bool       | Braki:       0 (  0.0%) | Sample: 0.9996411414962768
+  * Mac                       | Type: bool       | Braki:       0 (  0.0%) | Sample: 0.1736548923016695
+  * Linux                     | Type: bool       | Braki:       0 (  0.0%) | Sample: 0.12809617407899782
+  * Metacritic score          | Type: int64      | Braki:       0 (  0.0%) | Sample: 2.5649411553612644
+  * Achievements              | Type: int64      | Braki:       0 (  0.0%) | Sample: 18.08701503127778
+  * Developers                | Type: object     | Braki:    8437 (  6.9%) | Sample: minori
+  * Publishers                | Type: object     | Braki:    8909 (  7.3%) | Sample: MangaGamer
+  * Categories                | Type: object     | Braki:    8953 (  7.3%) | Sample: Single-player,Steam Trading Cards,Steam Cloud,Family Sharing
+  * Genres                    | Type: object     | Braki:    8413 (  6.9%) | Sample: Adventure
+  * User score                | Type: int64      | Braki:       0 (  0.0%) | Sample: 0.024549184004697785
+  * Score rank                | Type: float64    | Braki:  122571 (100.0%) | Sample: 99.175
+  * Positive                  | Type: int64      | Braki:       0 (  0.0%) | Sample: 1044.986135012356
+  * Negative                  | Type: int64      | Braki:       0 (  0.0%) | Sample: 169.19742926817332
+  * Estimated owners          | Type: int64      | Braki:       0 (  0.0%) | Sample: 54.59332360065573
+
+================================================================================
+ANALIZA SZCZEGOLOWA
+================================================================================
+
+[DATA] AppID:
+  - Unikalne wartosci: 121454
+  - Duplikaty: 1156
+
+[PRICE] Price:
+  - Typ danych: int64
+  - Braki: 0
+  - Bezplatne gry (0): 81930
+  - Min cena: $0
+  - Max cena: $100
+  - Srednia cena: $18.35
+  - Mediana ceny: $0.00
+
+[PLATFORM] Obsluga platform:
+  - Windows: 122611 (100.0%)
+  - Mac: 122611 (100.0%)
+  - Linux: 122611 (100.0%)
+
+[SCORE] Oceny:
+  - Metacritic score braki: 0
+  - Metacritic score - srednia: 2.6
+  - User score braki: 0
+  - User score - srednia: 0.02
+
+[REVIEW] Recenzje:
+  - Positive braki: 0
+  - Positive - srednia: 1045
+  - Negative braki: 0
+  - Negative - srednia: 169
+
+[META] Metadane:
+  - Developers braki: 8437
+  - Publishers braki: 8909
+  - Categories braki: 8953
+  - Genres braki: 8413
+  - Achievements braki: 0
+
+[OK] Raport eksploracji zapisany: reports/01_exploration_summary.json
+
+================================================================================
+[OK] EKSPLORACJA UKONCZNA
+================================================================================
+
+2026-04-18 09:59:15,975 - INFO - [OK] Eksploracja danych - SUKCES (8.6s)
+2026-04-18 09:59:15,975 - INFO - 
+================================================================================
+2026-04-18 09:59:15,975 - INFO - KROK: Czyszczenie danych
+2026-04-18 09:59:15,975 - INFO - Skrypt: 03_data_cleaning.py
+2026-04-18 09:59:15,975 - INFO - ================================================================================
+2026-04-18 09:59:16,640 - 
+================================================================================
+2026-04-18 09:59:16,640 - CZYSZCZENIE DANYCH
+2026-04-18 09:59:16,640 - ================================================================================
+
+2026-04-18 09:59:22,761 - Zaladowano dane: (122611, 40)
+2026-04-18 09:59:22,761 - Wybieranie kolumn...
+2026-04-18 09:59:22,908 - Wybrano 18 kolumn
+2026-04-18 09:59:22,908 - Sprawdzanie duplikatow...
+2026-04-18 09:59:22,925 - Znaleziono 1156 duplikujacych AppID - usuwanie...
+2026-04-18 09:59:22,957 - Dane po usuniŕciu duplikatow: (121455, 18)
+2026-04-18 09:59:22,957 - Czyszczenie cen...
+2026-04-18 09:59:22,962 - Ceny: min=0, max=100
+2026-04-18 09:59:22,962 - Czyszczenie dat...
+2026-04-18 09:59:22,995 - Usunieto 121455 gier bez daty wydania
+2026-04-18 09:59:22,995 - Daty: od NaT do NaT
+2026-04-18 09:59:22,995 - Czyszczenie platform...
+2026-04-18 09:59:22,997 - Windows: 0 gier
+2026-04-18 09:59:22,997 - Mac: 0 gier
+2026-04-18 09:59:22,997 - Linux: 0 gier
+2026-04-18 09:59:22,997 - Czyszczenie ocen...
+2026-04-18 09:59:23,001 - Metacritic score - braki: 0
+2026-04-18 09:59:23,001 - User score - braki: 0
+2026-04-18 09:59:23,001 - Czyszczenie recenzji...
+2026-04-18 09:59:23,005 - Positive - srednia: nan
+2026-04-18 09:59:23,005 - Negative - srednia: nan
+2026-04-18 09:59:23,005 - Czyszczenie pol tekstowych...
+2026-04-18 09:59:23,008 - Czyszczenie pol numerycznych...
+2026-04-18 09:59:23,011 - Achievements - srednia: nan
+2026-04-18 09:59:23,011 - Estimated owners - srednia: nan
+2026-04-18 09:59:23,011 - 
+WERYFIKACJA CZYSZCZENIA:
+2026-04-18 09:59:23,012 - --------------------------------------------------
+2026-04-18 09:59:23,013 - [OK] Brak wartosci brakujacych
+2026-04-18 09:59:23,014 - [OK] Brak duplikatow AppID
+2026-04-18 09:59:23,015 - 
+Typy danych:
+AppID                       object
+Name                        object
+Release date        datetime64[ns]
+Price                        int64
+Windows                       bool
+Mac                           bool
+Linux                         bool
+Metacritic score             int64
+Achievements                 int64
+Developers                  object
+Publishers                  object
+Categories                  object
+Genres                      object
+User score                   int64
+Score rank                 float64
+Positive                     int64
+Negative                     int64
+Estimated owners             int64
+Review_ratio               float64
+dtype: object
+2026-04-18 09:59:23,019 - 
+[OK] Oczyszczone dane zapisane: games_cleaned.csv
+2026-04-18 09:59:23,019 -   Rozmiar: (0, 19)
+2026-04-18 09:59:23,020 - 
+================================================================================
+2026-04-18 09:59:23,020 - [OK] CZYSZCZENIE UKONCZNA
+2026-04-18 09:59:23,020 - ================================================================================
+
+2026-04-18 09:59:23,204 - INFO - [OK] Czyszczenie danych - SUKCES (7.2s)
+2026-04-18 09:59:23,204 - INFO - 
+================================================================================
+2026-04-18 09:59:23,204 - INFO - KROK: In┼╝ynieria cech
+2026-04-18 09:59:23,204 - INFO - Skrypt: 04_feature_engineering.py
+2026-04-18 09:59:23,204 - INFO - ================================================================================
+2026-04-18 09:59:25,247 - 
+================================================================================
+2026-04-18 09:59:25,247 - INZYNIERIA CECH
+2026-04-18 09:59:25,247 - ================================================================================
+
+2026-04-18 09:59:25,254 - Zaladowano dane: (0, 19)
+2026-04-18 09:59:25,254 - Tworzenie cech z daty...
+2026-04-18 09:59:25,261 - [OK] Cechy daty utworzone
+2026-04-18 09:59:25,261 - Tworzenie cech platform...
+2026-04-18 09:59:25,265 - Srednia liczba platform: nan
+2026-04-18 09:59:25,265 - [OK] Cechy platform utworzone
+2026-04-18 09:59:25,265 - Tworzenie cech recenzji...
+2026-04-18 09:59:25,267 - Srednia recenzji: nan
+2026-04-18 09:59:25,267 - [OK] Cechy recenzji utworzone
+2026-04-18 09:59:25,268 - Tworzenie cech ocen...
+2026-04-18 09:59:25,275 - [OK] Cechy ocen utworzone
+2026-04-18 09:59:25,275 - Tworzenie cech zawartosci...
+2026-04-18 09:59:25,277 - Srednia genre'ow: nan
+2026-04-18 09:59:25,277 - Srednia kategorii: nan
+2026-04-18 09:59:25,277 - [OK] Cechy zawartosci utworzone
+2026-04-18 09:59:25,277 - Tworzenie cech ceny...
+2026-04-18 09:59:25,281 - Bezplatne gry: 0
+2026-04-18 09:59:25,281 - Srednia cena: $nan
+2026-04-18 09:59:25,281 - [OK] Cechy ceny utworzone
+2026-04-18 09:59:25,281 - Kodowanie zmiennych kategorycznych...
+2026-04-18 09:59:25,283 -   [OK] Metacritic_category zakodowana (0 kolumn)
+2026-04-18 09:59:25,285 -   [OK] Price_category zakodowana (0 kolumn)
+2026-04-18 09:59:25,285 - Normalizowanie cech numerycznych...
+Traceback (most recent call last):
+  File "C:\Users\matth\OneDrive\Atlantis\ml-project-steam\04_feature_engineering.py", line 169, in <module>
+    main()
+    ~~~~^^
+  File "C:\Users\matth\OneDrive\Atlantis\ml-project-steam\04_feature_engineering.py", line 166, in main
+    engineer.run()
+    ~~~~~~~~~~~~^^
+  File "C:\Users\matth\OneDrive\Atlantis\ml-project-steam\04_feature_engineering.py", line 156, in run
+    self.normalize_numeric_features()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\matth\OneDrive\Atlantis\ml-project-steam\04_feature_engineering.py", line 121, in normalize_numeric_features
+    normalized_data = self.scaler.fit_transform(self.df[numeric_features].fillna(0))
+  File "C:\Users\matth\AppData\Local\Programs\Python\Python314\Lib\site-packages\sklearn\utils\_set_output.py", line 316, in wrapped
+    data_to_wrap = f(self, X, *args, **kwargs)
+  File "C:\Users\matth\AppData\Local\Programs\Python\Python314\Lib\site-packages\sklearn\base.py", line 907, in fit_transform
+    return self.fit(X, **fit_params).transform(X)
+           ~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\matth\AppData\Local\Programs\Python\Python314\Lib\site-packages\sklearn\preprocessing\_data.py", line 924, in fit
+    return self.partial_fit(X, y, sample_weight)
+           ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\matth\AppData\Local\Programs\Python\Python314\Lib\site-packages\sklearn\base.py", line 1336, in wrapper
+    return fit_method(estimator, *args, **kwargs)
+  File "C:\Users\matth\AppData\Local\Programs\Python\Python314\Lib\site-packages\sklearn\preprocessing\_data.py", line 961, in partial_fit
+    X = validate_data(
+        self,
+    ...<4 lines>...
+        reset=first_call,
+    )
+  File "C:\Users\matth\AppData\Local\Programs\Python\Python314\Lib\site-packages\sklearn\utils\validation.py", line 2902, in validate_data
+    out = check_array(X, input_name="X", **check_params)
+  File "C:\Users\matth\AppData\Local\Programs\Python\Python314\Lib\site-packages\sklearn\utils\validation.py", line 1097, in check_array
+    raise ValueError(
+    ...<3 lines>...
+    )
+ValueError: Found array with 0 sample(s) (shape=(0, 8)) while a minimum of 1 is required by StandardScaler.
+2026-04-18 09:59:25,568 - ERROR - [ERROR] In┼╝ynieria cech - BLAD (kod: 1)
+2026-04-18 09:59:25,568 - WARNING - [!] Pipleline zatrzymany z powodu bledu w: In┼╝ynieria cech
+2026-04-18 09:59:25,568 - INFO - 
+================================================================================
+2026-04-18 09:59:25,568 - INFO - PODSUMOWANIE PIPLELINE'U
+2026-04-18 09:59:25,568 - INFO - ================================================================================
+
+2026-04-18 09:59:25,568 - INFO - Skrypt                         Status     Czas (s)  
+2026-04-18 09:59:25,569 - INFO - --------------------------------------------------
+2026-04-18 09:59:25,569 - INFO - 02_data_exploration.py         SUCCESS    8.6       
+2026-04-18 09:59:25,569 - INFO - 03_data_cleaning.py            SUCCESS    7.2       
+2026-04-18 09:59:25,569 - INFO - 04_feature_engineering.py      FAILED     2.4       
+2026-04-18 09:59:25,569 - INFO - --------------------------------------------------
+2026-04-18 09:59:25,569 - INFO - RAZEM                                     18.2      s
+2026-04-18 09:59:25,569 - WARNING - 
+[!] 1 kroki nie powiodly sie
+2026-04-18 09:59:25,569 - INFO - 
+Katalog wyjsciowy: data/processed/
+2026-04-18 09:59:25,569 - INFO - Pliki logu: reports/
+2026-04-18 09:59:25,569 - INFO - 
+================================================================================
+
