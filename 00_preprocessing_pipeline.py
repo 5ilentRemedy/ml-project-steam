@@ -17,6 +17,9 @@ from pathlib import Path
 from datetime import datetime
 import logging
 import io
+import re
+import importlib
+from importlib import metadata
 
 # UTF-8 encoding
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
@@ -199,6 +202,93 @@ class PreprocessingPipeline:
 def main():
     """Glowna funkcja"""
     try:
+        # Sprawdź zależności przed uruchomieniem pipeline'u
+        def check_and_install_requirements():
+            req_file = Path(__file__).parent / 'requirements.txt'
+            if not req_file.exists():
+                logger.info('Brak requirements.txt — pomijam sprawdzanie zależności.')
+                return
+
+            logger.info('Sprawdzam wymagane zależności z requirements.txt...')
+            lines = [l.strip() for l in req_file.read_text(encoding='utf-8').splitlines()]
+            pkg_lines = [l for l in lines if l and not l.startswith('#')]
+
+            missing = []
+            mismatch = []
+
+            for line in pkg_lines:
+                # Wyciągnij nazwę pakietu (przed operatorem wersji)
+                m = re.match(r"^\s*([A-Za-z0-9_.\-]+)", line)
+                if not m:
+                    continue
+                pkg_name = m.group(1)
+
+                # Heurystyka nazwy modułu: zamień '-' na '_' (np. scikit-learn -> scikit_learn)
+                mod_candidates = [pkg_name.replace('-', '_')]
+                # popularne aliasy
+                if pkg_name.lower() == 'scikit-learn':
+                    mod_candidates.insert(0, 'sklearn')
+
+                found = False
+                for mod in mod_candidates:
+                    try:
+                        importlib.import_module(mod)
+                        found = True
+                        break
+                    except Exception:
+                        continue
+
+                if not found:
+                    missing.append(pkg_name)
+                    continue
+
+                # Sprawdź wersję jeśli podano (jeśli metadata jest dostępne)
+                try:
+                    installed_version = metadata.version(pkg_name)
+                except metadata.PackageNotFoundError:
+                    try:
+                        installed_version = metadata.version(mod)
+                    except Exception:
+                        installed_version = None
+
+                # Jeśli linia zawiera specyfikator wersji, porównaj
+                spec_match = re.search(r"([<>=!~].+)$", line)
+                if installed_version and spec_match:
+                    spec = spec_match.group(1)
+                    try:
+                        # Użyj packaging jeśli dostępny
+                        from packaging.specifiers import SpecifierSet
+                        ss = SpecifierSet(spec)
+                        if not ss.contains(installed_version):
+                            mismatch.append((pkg_name, installed_version, spec))
+                    except Exception:
+                        # Nie możemy sprawdzić dokładnie — pomiń wersję
+                        pass
+
+            if not missing and not mismatch:
+                logger.info('Wszystkie zależności wydają się być spełnione.')
+                return
+
+            # Podsumowanie
+            if missing:
+                logger.warning(f'Brakuje pakietów: {missing}')
+            if mismatch:
+                logger.warning(f'Pakiety z niezgodną wersją: {mismatch}')
+
+            # Zapytaj użytkownika o instalację
+            resp = input('Zainstalować brakujące/niezgodne pakiety z requirements.txt? [y/N]: ').strip().lower()
+            if resp != 'y':
+                logger.info('Pominięto instalację pakietów.')
+                return
+
+            # Uruchom instalację
+            cmd = [sys.executable, '-m', 'pip', 'install', '-r', str(req_file)]
+            logger.info(f'Uruchamiam: {cmd}')
+            subprocess.check_call(cmd)
+            logger.info('Instalacja zakończona. Kontynuuję.')
+
+        check_and_install_requirements()
+
         pipeline = PreprocessingPipeline()
         success = pipeline.run()
         

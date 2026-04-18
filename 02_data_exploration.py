@@ -28,7 +28,30 @@ def load_raw_data():
     csv_files = sorted([f for f in data_dir.glob("games_*.csv") 
                        if f.stem != "games_cleaned" and f.stem != "games_engineered"])
     if not csv_files:
-        raise FileNotFoundError("Nie znaleziono pliku CSV w katalogu data/")
+        # Jeśli brak plików, spróbuj pobrać dane używając skryptu kolekcji danych
+        print("Brak plików CSV w katalogu data/. Spróbuję pobrać dane...")
+        # Załaduj skrypt 01_data_collection.py bez względu na nazwę modułu
+        try:
+            import importlib.util
+            spec = importlib.util.spec_from_file_location("data_collection", Path(__file__).parent / "01_data_collection.py")
+            data_collection = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(data_collection)
+        except Exception as e:
+            print(f"Nie udało się załadować skryptu 01_data_collection: {e}")
+            raise FileNotFoundError("Nie znaleziono pliku CSV w katalogu data/ i nie można pobrać danych.")
+
+        try:
+            data_collection.download_and_move_dataset()
+        except Exception as e:
+            print(f"Błąd podczas pobierania danych: {e}")
+            raise FileNotFoundError("Nie znaleziono pliku CSV w katalogu data/ i pobieranie zakończyło się błędem.")
+
+        # Ponowna próba znalezienia plików
+        csv_files = sorted([f for f in data_dir.glob("games_*.csv") 
+                           if f.stem != "games_cleaned" and f.stem != "games_engineered"])
+
+        if not csv_files:
+            raise FileNotFoundError("Nie znaleziono pliku CSV w katalogu data/ po próbie pobrania danych")
     
     latest_file = csv_files[-1]
     print(f"Ladowanie danych z: {latest_file.name}")
