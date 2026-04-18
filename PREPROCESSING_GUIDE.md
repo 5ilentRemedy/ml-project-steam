@@ -158,13 +158,33 @@ ml-project-steam/
 │   ├── games_engineered.csv        # Dane z nowymi cechami
 │   │
 │   └── processed/                  # Finalne dane dla ML (15 kolumn)
+│       │
+│       ├─ 📋 PLIKI GŁÓWNE (CSV/Parquet)
 │       ├── games_final.csv         # CSV z 15 best features
 │       ├── games_final.parquet     # Parquet (szybciej, ~3MB)
 │       ├── games_train.csv         # 80% (98,089 wierszy) do treningu
 │       ├── games_test.csv          # 20% (24,522 wierszy) do testowania
-│       ├── dataset_manifest.json   # Metadata i statystyka
-│       ├── columns_documentation.csv
-│       └── README.md               # Dokumentacja finalna datasetu
+│       │
+│       ├─ 📁 CSV Z GRUPAMI KOLUMN (nowe!)
+│       ├── games_group_identifiers.csv  # AppID, Name
+│       ├── games_group_temporal.csv     # Release_year, Days_since_release
+│       ├── games_group_platform.csv     # Platform_count
+│       ├── games_group_reviews.csv      # Total_reviews, Review_ratio, Log_total_reviews
+│       ├── games_group_scores.csv       # Is_highly_rated
+│       ├── games_group_content.csv      # Log_owners, Has_achievements, Genre_count
+│       ├── games_group_price.csv        # Price, Is_free
+│       ├── games_group_metadata.csv     # Genres
+│       │
+│       ├─ 🔍 XLSX Z FILTRAMI NA NAGŁÓWKACH (nowe!)
+│       ├── games_final_with_filters.xlsx      # Wszystkie dane z filtrami autofilter
+│       ├── games_train_with_filters.xlsx      # 80% z filtrami autofilter
+│       ├── games_test_with_filters.xlsx       # 20% z filtrami autofilter
+│       ├── games_final_grouped.xlsx           # 8 arkuszy (jeden per grupa)
+│       │
+│       ├─ 📄 DOKUMENTACJA
+│       ├── dataset_manifest.json      # Metadata i statystyka
+│       ├── columns_documentation.csv  # Info o każdej kolumnie
+│       └── README.md                  # Dokumentacja finalna
 │
 └── reports/
     ├── 01_exploration_summary.json # Raport eksploracji (struktura, statistyka)
@@ -172,6 +192,27 @@ ml-project-steam/
     ├── 03_export_summary.json      # Raport exportu (finalne 15 kolumn)
     └── preprocessing.log           # Log wykonania wszystkich 5 kroków
 ```
+
+### 📊 Rodzaje generowanych plików:
+
+**📋 PLIKI GŁÓWNE** (standardowe CSV/Parquet):
+- `games_final.csv` - Wszystkie 122,611 gier × 15 kolumn
+- `games_train.csv` - 98,089 gier do trenowania modeli
+- `games_test.csv` - 24,522 gry do testowania
+- `games_final.parquet` - Format binarny (3x mniejszy)
+
+**📁 CSV Z GRUPAMI KOLUMN** (nowe!):
+Każdy plik zawiera podgrupę powiązanych cech:
+- Umożliwia pracę z konkretnymi grupami atrybutów
+- Idealne dla eksploracyjnej analizy (EDA)
+- Przydatne dla feature selection w ML
+
+**🔍 XLSX Z FILTRAMI** (nowe!):
+- **Autofilter na nagłówkach** - Możliwość sortowania/filtrowania w Excelu
+- **Zamrożone nagłówki** - Pierwszy wiersz zawsze widoczny
+- **Formatowanie** - Liczby sformatowane (2 miejsca dziesiętne)
+- 3 wersje danych: wszystkie + train + test
+- **games_final_grouped.xlsx** - 8 arkuszy (jeden na grupę)
 
 ## 📊 Finalne 15 kolumn do modelowania ML
 
@@ -484,28 +525,50 @@ RAZEM: 100.0 - 3.6 - 0 - 10.0 - 2.0 = 84.4/100 ✅
 ---
 
 ### **KROK 5: 06_data_export.py** - Selekcja i export do ML
-**Czas wykonania:** ~6 sekund
+**Czas wykonania:** ~6-8 sekund
 
 **Co robi:**
 - Wczytuje 61 cech (122,611 × 61)
 - **Selekcja 15 kolumn** najwartościowszych dla ML
 - Tworzy train/test split (80/20)
 - Eksportuje do CSV i Parquet
+- **Generuje CSV z grupami kolumn** (8 plików)
+- **Generuje XLSX z filtrami autofilter** (4 pliki)
 - Generuje dokumentację i manifest
 
 **Wejście:**
 - `data/games_engineered.csv` (122,611 × 61)
 
-**Wyjście (7 plików):**
+**Wyjście (18+ plików):**
 ```
 data/processed/
-├── games_final.csv          (17.09 MB) ← CSV z 15 kolumnami
-├── games_final.parquet      (3.22 MB)  ← Szybki Parquet
-├── games_train.csv          (13.67 MB) ← 98,089 wierszy (80%)
-├── games_test.csv           (3.41 MB)  ← 24,522 wierszy (20%)
-├── dataset_manifest.json    ← Metadane i statystyka
-├── columns_documentation.csv ← Info o każdej kolumnie
-└── README.md                ← Dokumentacja finalna
+│
+├─ 📋 PLIKI GŁÓWNE (4 pliki)
+├── games_final.csv              (17.09 MB) - CSV z 15 kolumnami
+├── games_final.parquet          (3.22 MB)  - Szybki Parquet
+├── games_train.csv              (13.67 MB) - 98,089 wierszy (80%)
+├── games_test.csv               (3.41 MB)  - 24,522 wierszy (20%)
+│
+├─ 📁 CSV Z GRUPAMI KOLUMN (8 plików) - NOWE!
+├── games_group_identifiers.csv        - AppID, Name
+├── games_group_temporal.csv           - Release_year, Days_since_release
+├── games_group_platform.csv           - Platform_count
+├── games_group_reviews.csv            - Total_reviews, Review_ratio, Log_total_reviews
+├── games_group_scores.csv             - Is_highly_rated
+├── games_group_content.csv            - Log_owners, Has_achievements, Genre_count
+├── games_group_price.csv              - Price, Is_free
+├── games_group_metadata.csv           - Genres
+│
+├─ 🔍 XLSX Z FILTRAMI (4 pliki) - NOWE!
+├── games_final_with_filters.xlsx      - Wszystkie dane + autofilter + zamrożony header
+├── games_train_with_filters.xlsx      - 80% treningu + autofilter
+├── games_test_with_filters.xlsx       - 20% testów + autofilter
+├── games_final_grouped.xlsx           - 8 arkuszy (jedna grupa per arkusz)
+│
+├─ 📄 DOKUMENTACJA (3 pliki)
+├── dataset_manifest.json              - Metadane i statystyka
+├── columns_documentation.csv          - Info o każdej kolumnie
+└── README.md                          - Dokumentacja finalna
 ```
 
 **Selekcja 15 kolumn (najważniejsze):**
@@ -529,7 +592,42 @@ selected_15_columns = [
 ]
 ```
 
-**Kodowanie selekcji:**
+**Nowe funkcje - CSV z grupami:**
+```python
+# Każda grupa to osobny plik CSV
+feature_groups = {
+    'identifiers': ['AppID', 'Name'],
+    'temporal': ['Release_year', 'Days_since_release'],
+    'platform': ['Platform_count'],
+    'reviews': ['Total_reviews', 'Review_ratio', 'Log_total_reviews'],
+    'scores': ['Is_highly_rated'],
+    'content': ['Log_owners', 'Has_achievements', 'Genre_count'],
+    'price': ['Price', 'Is_free'],
+    'metadata': ['Genres']
+}
+
+for group_name, columns in feature_groups.items():
+    group_df = df[columns]
+    group_df.to_csv(f'games_group_{group_name}.csv', index=False)
+```
+
+**Nowe funkcje - XLSX z filtrami:**
+```python
+# 1. Autofilter na nagłówkach
+ws.auto_filter.ref = f"A1:{last_column}{last_row}"
+
+# 2. Zamrożone nagłówki (pierwszy wiersz)
+ws.freeze_panes = "A2"
+
+# 3. Formatowanie liczb
+cell.number_format = '0.00'  # 2 miejsca dziesiętne
+
+# 4. Stylizacja nagłówka
+cell.font = Font(bold=True, color="FFFFFF")
+cell.fill = PatternFill(start_color="366092", end_color="366092")
+```
+
+**Kodowanie selekcji (15 z 61 cech):**
 ```python
 # Wycluczone 46 features (dlaczego?):
 # - 8 znormalizowanych: user może skalować sam

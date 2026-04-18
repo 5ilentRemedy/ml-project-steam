@@ -15,6 +15,15 @@ if sys.stdout.encoding and 'utf' not in sys.stdout.encoding.lower():
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
 logger = logging.getLogger(__name__)
 
+try:
+    from openpyxl import Workbook
+    from openpyxl.worksheet.datavalidation import DataValidation
+    from openpyxl.utils import get_column_letter
+    HAS_OPENPYXL = True
+except ImportError:
+    HAS_OPENPYXL = False
+    logger.warning("openpyxl nie zainstalowany - XLSX z filtrami nie będą generowane")
+
 class DataExporter:
     def __init__(self):
         self.df = None
@@ -228,26 +237,214 @@ Wygenerowano: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
             json.dump(self.export_info, f, indent=2, ensure_ascii=False)
         logger.info(f"[OK] Streszczenie exportu: {summary_file.name}")
     
+    def export_feature_groups_csv(self):
+        """Generuje osobne CSV dla każdej grupy cech"""
+        logger.info("Generowanie CSV dla grup cech...")
+        output_dir = Path(__file__).parent / "data" / "processed"
+        output_dir.mkdir(parents=True, exist_ok=True)
+        
+        feature_groups = {
+            'identifiers': ['AppID', 'Name'],
+            'temporal': ['Release_year', 'Days_since_release'],
+            'platform': ['Platform_count'],
+            'reviews': ['Total_reviews', 'Review_ratio', 'Log_total_reviews'],
+            'scores': ['Is_highly_rated'],
+            'content': ['Log_owners', 'Has_achievements', 'Genre_count'],
+            'price': ['Price', 'Is_free'],
+            'metadata': ['Genres']
+        }
+        
+        for group_name, columns in feature_groups.items():
+            cols_present = [col for col in columns if col in self.df.columns]
+            if cols_present:
+                group_df = self.df[cols_present].copy()
+                group_file = output_dir / f"games_group_{group_name}.csv"
+                group_df.to_csv(group_file, index=False)
+                logger.info(f"  [OK] {group_name}: {group_file.name} ({len(cols_present)} kolumn)")
+    
+    def export_with_filters_xlsx(self):
+        """Generuje XLSX z filtrami na nagłówkach i zamrożonymi wierszami"""
+        if not HAS_OPENPYXL:
+            logger.warning("  [SKIP] openpyxl nie dostępny - pomijanie XLSX z filtrami")
+            return
+        
+        logger.info("Generowanie XLSX z filtrami na nagłówkach...")
+        output_dir = Path(__file__).parent / "data" / "processed"
+        output_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Całe dane z filtrami
+        output_file = output_dir / "games_final_with_filters.xlsx"
+        self._create_xlsx_with_filters(self.df, output_file, "Games Data")
+        logger.info(f"  [OK] games_final_with_filters.xlsx")
+        
+        # Train set z filtrami
+        np.random.seed(42)
+        test_indices = np.random.choice(len(self.df), size=int(len(self.df) * 0.2), replace=False)
+        train_df = self.df.drop(test_indices)
+        
+        train_file = output_dir / "games_train_with_filters.xlsx"
+        self._create_xlsx_with_filters(train_df, train_file, "Training Data")
+        logger.info(f"  [OK] games_train_with_filters.xlsx ({len(train_df)} wierszy)")
+        
+        # Test set z filtrami
+        test_df = self.df.iloc[test_indices]
+        test_file = output_dir / "games_test_with_filters.xlsx"
+        self._create_xlsx_with_filters(test_df, test_file, "Test Data")
+        logger.info(f"  [OK] games_test_with_filters.xlsx ({len(test_df)} wierszy)")
+    
+    def _create_xlsx_with_filters(self, df, output_file, sheet_name="Data"):
+        """Helper: Tworzy XLSX z filtrami i zamrożonymi nagłówkami"""
+        wb = Workbook()
+        ws = wb.active
+        ws.title = sheet_name
+        
+        # Wpisz nagłówki
+        for col_idx, col_name in enumerate(df.columns, 1):
+            cell = ws.cell(row=1, column=col_idx, value=col_name)
+            cell.font = cell.font.copy()
+            cell.font = cell.font.copy()
+            from openpyxl.styles import Font, PatternFill
+            cell.font = Font(bold=True, color="FFFFFF")
+            cell.fill = PatternFill(start_color="366092", end_color="366092", fill_type="solid")
+        
+        # Wpisz dane
+        for row_idx, row in enumerate(df.values, 2):
+            for col_idx, value in enumerate(row, 1):
+                cell = ws.cell(row=row_idx, column=col_idx, value=value)
+                # Formatowanie liczb
+                if isinstance(value, float):
+                    cell.number_format = '0.00'
+                elif isinstance(value, int) and col_idx != 1:  # Nie formatuj AppID
+                    cell.number_format = '0'
+        
+        # Ustaw szerokość kolumn
+        for col_idx, col_name in enumerate(df.columns, 1):
+            width = max(len(str(col_name)), 12)
+            ws.column_dimensions[get_column_letter(col_idx)].width = width
+        
+        # Zamróż nagłówek (pierwszy wiersz)
+        ws.freeze_panes = "A2"
+        
+        # Dodaj filtry autofilter
+        max_row = len(df) + 1
+        max_col = len(df.columns)
+        ws.auto_filter.ref = f"A1:{get_column_letter(max_col)}{max_row}"
+        
+        wb.save(output_file)
+    
+    def export_grouped_xlsx(self):
+        """Generuje XLSX z oddzielnymi arkuszami dla każdej grupy cech"""
+        if not HAS_OPENPYXL:
+            logger.warning("  [SKIP] openpyxl nie dostępny - pomijanie XLSX z grupami")
+            return
+        
+        logger.info("Generowanie XLSX z grupami cech jako oddzielne arkusze...")
+        output_dir = Path(__file__).parent / "data" / "processed"
+        output_dir.mkdir(parents=True, exist_ok=True)
+        
+        feature_groups = {
+            'Identifiers': ['AppID', 'Name'],
+            'Temporal': ['Release_year', 'Days_since_release'],
+            'Platform': ['Platform_count'],
+            'Reviews': ['Total_reviews', 'Review_ratio', 'Log_total_reviews'],
+            'Scores': ['Is_highly_rated'],
+            'Content': ['Log_owners', 'Has_achievements', 'Genre_count'],
+            'Price': ['Price', 'Is_free'],
+            'Metadata': ['Genres']
+        }
+        
+        output_file = output_dir / "games_final_grouped.xlsx"
+        wb = Workbook()
+        wb.remove(wb.active)  # Usuń domyślny arkusz
+        
+        for group_name, columns in feature_groups.items():
+            cols_present = [col for col in columns if col in self.df.columns]
+            if cols_present:
+                ws = wb.create_sheet(group_name)
+                group_df = self.df[cols_present].copy()
+                
+                # Nagłówki
+                for col_idx, col_name in enumerate(cols_present, 1):
+                    cell = ws.cell(row=1, column=col_idx, value=col_name)
+                    from openpyxl.styles import Font, PatternFill
+                    cell.font = Font(bold=True, color="FFFFFF")
+                    cell.fill = PatternFill(start_color="366092", end_color="366092", fill_type="solid")
+                
+                # Dane
+                for row_idx, row in enumerate(group_df.values, 2):
+                    for col_idx, value in enumerate(row, 1):
+                        cell = ws.cell(row=row_idx, column=col_idx, value=value)
+                        if isinstance(value, float):
+                            cell.number_format = '0.00'
+                
+                # Zamróż nagłówek i szerokość
+                ws.freeze_panes = "A2"
+                for col_idx, col_name in enumerate(cols_present, 1):
+                    width = max(len(str(col_name)), 12)
+                    from openpyxl.utils import get_column_letter
+                    ws.column_dimensions[get_column_letter(col_idx)].width = width
+        
+        wb.save(output_file)
+        logger.info(f"  [OK] games_final_grouped.xlsx ({len(feature_groups)} arkuszy)")
+    
+    
     def run(self):
         logger.info("\n" + "=" * 80)
         logger.info("EXPORT I PRZYGOTOWANIE DANYCH")
         logger.info("=" * 80 + "\n")
         self.load_data()
         self.select_final_features()
+        
+        # ISTNIEJĄCE PLIKI
+        logger.info("\n>>> PLIKI GŁÓWNE (CSV/Parquet)")
         self.export_csv()
         self.export_parquet()
         self.create_train_test_split()
+        
+        # NOWE PLIKI - GRUPY I FILTRY
+        logger.info("\n>>> PLIKI Z GRUPAMI I FILTRAMI")
+        self.export_feature_groups_csv()
+        self.export_with_filters_xlsx()
+        self.export_grouped_xlsx()
+        
+        # DOKUMENTACJA
+        logger.info("\n>>> DOKUMENTACJA")
         self.create_feature_groups()
         self.create_data_documentation()
         self.create_manifest()
         self.create_readme()
         self.save_summary()
+        
         logger.info("\n" + "=" * 80)
         logger.info("[OK] EXPORT UKONCZNY")
         logger.info("=" * 80 + "\n")
-        logger.info("Pliki wyjsciowe w: data/processed/")
-        logger.info("  - games_final.csv")
-        logger.info("  - games_final.parquet")
+        logger.info("Pliki wyjsciowe w: data/processed/\n")
+        logger.info("📋 PLIKI GŁÓWNE (niezmienione):")
+        logger.info("  ✓ games_final.csv")
+        logger.info("  ✓ games_final.parquet")
+        logger.info("  ✓ games_train.csv")
+        logger.info("  ✓ games_test.csv")
+        logger.info("\n📁 GRUPY KOLUMN (nowe):")
+        logger.info("  ✓ games_group_identifiers.csv")
+        logger.info("  ✓ games_group_temporal.csv")
+        logger.info("  ✓ games_group_platform.csv")
+        logger.info("  ✓ games_group_reviews.csv")
+        logger.info("  ✓ games_group_scores.csv")
+        logger.info("  ✓ games_group_content.csv")
+        logger.info("  ✓ games_group_price.csv")
+        logger.info("  ✓ games_group_metadata.csv")
+        logger.info("\n🔍 XLSX Z FILTRAMI (nowe):")
+        if HAS_OPENPYXL:
+            logger.info("  ✓ games_final_with_filters.xlsx (wszystkie dane)")
+            logger.info("  ✓ games_train_with_filters.xlsx (80% treningowe)")
+            logger.info("  ✓ games_test_with_filters.xlsx (20% testowe)")
+            logger.info("  ✓ games_final_grouped.xlsx (8 arkuszy z grupami)")
+        else:
+            logger.info("  ⚠ openpyxl nie dostępny - XLSX nie wygenerowane")
+        logger.info("\n📄 DOKUMENTACJA:")
+        logger.info("  ✓ columns_documentation.csv")
+        logger.info("  ✓ dataset_manifest.json")
+        logger.info("  ✓ README.md")
         logger.info("  - games_train.csv")
         logger.info("  - games_test.csv")
         logger.info("  - dataset_manifest.json")
