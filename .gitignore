@@ -209,3 +209,5 @@ __marimo__/
 # dataset
 *.csv
 *.json
+*.parquet
+
