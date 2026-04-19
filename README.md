@@ -2,7 +2,7 @@
 
 ## Przegląd
 
-Ten projekt zawiera kompletny pipeline preprocessingu dla Steam Games Dataset przygotowując go do modelowania ML. Dataset zawiera informacje o **122,611 grach** z **39 kolumnami** oryginalnych danych.
+Ten projekt zawiera kompletny pipeline preprocessingu dla Steam Games Dataset przygotowując go do modelowania ML. Dataset zawiera informacje o  ponad 122k gier z 39 kolumnami oryginalnych danych.
 
 ## Cel
 
