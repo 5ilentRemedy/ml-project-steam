@@ -255,21 +255,10 @@ Po inżynierii cech i selekcji pipeline wybiera 15 najwartościowszych kolumn:
 - Zapisuje do CSV z timestampem (games_YYYYMMDD_HHMMSS.csv)
 - Tworzy również kopię JSON do raportowania
 
-**Wejście:**
-- Internetu i dostępu do Kaggle API
 
 **Wyjście:**
-- `data/games_20260418_093359.csv` (389 MB, 122,611 wierszy × 39 kolumn)
+- `data/games_20260418_093359.csv` 
 - `data/games_20260418_093359.json` (metadata backup)
-
-**Przykład:**
-```python
-from kaggle.api.kaggle_api_extended import KaggleApi
-
-api = KaggleApi()
-api.authenticate()
-api.dataset_download_files('fronkongames/steam-games-dataset')
-```
 
 ---
 
@@ -316,7 +305,7 @@ if pd.api.types.is_numeric_dtype(df[col]):
 ### **KROK 2: 03_data_cleaning.py** - Czyszczenie i standaryzacja
 **Czas wykonania:** ~9 sekund
 
-**Co robi:**
+
 - Wczytuje surowe dane z Kaggle (TYLKO surowe, nie przetworzane)
 - Wybiera 18 najważniejszych kolumn do analizy
 - Usuwa duplikaty (0 duplikatów znalezionych)
@@ -352,7 +341,7 @@ df['Review_ratio'] = df['Positive'] / (df['Positive'] + df['Negative'])
 ```
 
 **Statystyka:**
-- Duplikaty AppID: 0 ✅
+- Duplikaty AppID: 0
 - Brakujące wartości: User score (100%), Review_ratio (34.6%)
 - Zakresy: Cena [0.0 - 999.98], Metacritic [0-1] (bool)
 
@@ -474,7 +463,6 @@ missing_pct = (missing / (df.shape[0] * df.shape[1])) * 100
 **2. Duplikaty:**
 ```python
 dup_appid = df['AppID'].duplicated().sum()
-# Wynik: 0 ✅
 ```
 
 **3. Typy danych:**
@@ -520,7 +508,7 @@ Karykatura:
 - Outliers 263.7%:            -10.0 pkt (max -10, bo 263.7/10 > 10)
 - Anomalie zakresu (2):       -2.0 pkt (max -5)
 
-RAZEM: 100.0 - 3.6 - 0 - 10.0 - 2.0 = 84.4/100 ✅
+RAZEM: 100.0 - 3.6 - 0 - 10.0 - 2.0 = 84.4/100
 ```
 
 ---
@@ -544,13 +532,13 @@ RAZEM: 100.0 - 3.6 - 0 - 10.0 - 2.0 = 84.4/100 ✅
 ```
 data/processed/
 │
-├─ 📋 PLIKI GŁÓWNE (4 pliki)
+├─ PLIKI GŁÓWNE (4 pliki)
 ├── games_final.csv              (17.09 MB) - CSV z 15 kolumnami
 ├── games_final.parquet          (3.22 MB)  - Szybki Parquet
 ├── games_train.csv              (13.67 MB) - 98,089 wierszy (80%)
 ├── games_test.csv               (3.41 MB)  - 24,522 wierszy (20%)
 │
-├─ 📁 CSV Z GRUPAMI KOLUMN (8 plików) - NOWE!
+├─CSV Z GRUPAMI KOLUMN (8 plików) - NOWE!
 ├── games_group_identifiers.csv        - AppID, Name
 ├── games_group_temporal.csv           - Release_year, Days_since_release
 ├── games_group_platform.csv           - Platform_count
@@ -560,13 +548,13 @@ data/processed/
 ├── games_group_price.csv              - Price, Is_free
 ├── games_group_metadata.csv           - Genres
 │
-├─ 🔍 XLSX Z FILTRAMI (4 pliki) - NOWE!
+├─XLSX Z FILTRAMI (4 pliki) - NOWE!
 ├── games_final_with_filters.xlsx      - Wszystkie dane + autofilter + zamrożony header
 ├── games_train_with_filters.xlsx      - 80% treningu + autofilter
 ├── games_test_with_filters.xlsx       - 20% testów + autofilter
 ├── games_final_grouped.xlsx           - 8 arkuszy (jedna grupa per arkusz)
 │
-├─ 📄 DOKUMENTACJA (3 pliki)
+├─ DOKUMENTACJA (3 pliki)
 ├── dataset_manifest.json              - Metadane i statystyka
 ├── columns_documentation.csv          - Info o każdej kolumnie
 └── README.md                          - Dokumentacja finalna
@@ -733,7 +721,7 @@ Skrypt                         Status     Czas (s)
 RAZEM                                     32.0s
 ```
 
-## 📊 Wynik Final - Podsumowanie Transformacji
+##Wynik Final - Podsumowanie Transformacji
 
 ```
 TRANSFORMACJA DANYCH:
@@ -749,17 +737,17 @@ STATYSTYKA CAŁOŚCIOWA:
 - Feature engineering: 7 sekund (43 nowe cechy)
 - Walidacja: 3 sekundy (Quality Score: 84.4/100)
 - Export: 6 sekund (15 kolumn, train/test split)
-- RAZEM PIPELINE: 32 sekundy ⚡
+- RAZEM PIPELINE: 32 sekundy
 
 WIELKOŚĆ PLIKÓW:
 - Oryginał (CSV):              389 MB
 - Po czyszczeniu:              Pośredni
 - Po feature engineering:      ~55 MB
 - Finalne dane (CSV):          17 MB
-- Finalne dane (Parquet):      3.2 MB (85% mniejsze! 🚀)
+- Finalne dane (Parquet):      3.2 MB (85% mniejsze!)
 ```
 
-## 📈 Quality Score - Szczegółowa analiza (84.4/100)
+##Quality Score - Szczegółowa analiza (84.4/100)
 
 Quality Score obliczany jest w **Kroku 4 (05_data_validation.py)** na podstawie algorytmu punktacji:
 
@@ -773,7 +761,7 @@ Quality Score obliczany jest w **Kroku 4 (05_data_validation.py)** na podstawie 
 | **Duplikaty AppID** | `-5 jeśli > 0` | 0 duplikatów | 0.0 |
 | **Outliers** | `min(10, outlier_pct/10)` | 263.7%/10 = 26.4 → cap 10 | -10.0 |
 | **Anomalie zakresu** | `min(5, invalid_count)` | 2 anomalii | -2.0 |
-| | | **RAZEM** | **84.4** ✅ |
+| | | **RAZEM** | **84.4**|
 
 **Szczegóły brakujących wartości (3.6%):**
 - Całkowicie puste: User score (100%), User_score_normalized (100%)
@@ -788,13 +776,13 @@ Quality Score obliczany jest w **Kroku 4 (05_data_validation.py)** na podstawie 
 - ... (28 kolumn więcej z mniejszym % outliers)
 
 **Interpretacja wyniku:**
-- ✅ **84.4 to DOBRY wynik** (>80%)
-- ⚠️ Outliers głównie z kolumn binarnych (normalnie - to nie błędy!)
-- ✅ Zero duplikatów (perfekcja)
-- ✅ < 4% braków (dopuszczalny poziom)
-- 📊 Score jest konserwatywny - realistyczny dla danych biznesowych
+- **84.4 to DOBRY wynik** (>80%)
+- Outliers głównie z kolumn binarnych (normalnie - to nie błędy!)
+- Zero duplikatów (perfekcja)
+- < 4% braków (dopuszczalny poziom)
+- Score jest konserwatywny - realistyczny dla danych biznesowych
 
-## 🔄 Przepływ danych w pipeline'u
+## Przepływ danych w pipeline'u
 
 ```
 [WEJŚCIE SUROWE: 122,611 × 39 kolumn]
@@ -839,7 +827,7 @@ Quality Score obliczany jest w **Kroku 4 (05_data_validation.py)** na podstawie 
 └── Dokumentacja (JSON, CSV, README)
 ```
 
-## ⚙️ Wymagania i instalacja
+## Wymagania i instalacja
 
 **Wymagane pakiety:**
 ```
@@ -856,12 +844,12 @@ pip install pandas numpy scikit-learn pyarrow
 
 **Weryfikacja instalacji:**
 ```python
-import pandas; import numpy; import sklearn; print("✅ OK")
+import pandas; import numpy; import sklearn; print("OK")
 ```
 
 ---
 
-## 📚 Przykład użycia w Python
+## Przykład użycia w Python
 
 **Załaduj finalne dane (15 kolumn, gotowe do ML):**
 
@@ -919,7 +907,7 @@ print(df.corr())
 
 ---
 
-## 📊 Raporty wygenerowane przez pipeline
+## Raporty wygenerowane przez pipeline
 
 Po wykonaniu pipeline'u dostępne są 3 raporty JSON:
 
@@ -936,7 +924,7 @@ Po wykonaniu pipeline'u dostępne są 3 raporty JSON:
 - Info o strukturze danych
 - Statystyka eksploracyjna każdej kolumny
 
-### 2. **reports/02_validation_report.json** ⭐
+### 2. **reports/02_validation_report.json**
 ```json
 {
   "quality_score": 84.4,
@@ -972,7 +960,7 @@ Po wykonaniu pipeline'u dostępne są 3 raporty JSON:
 
 ---
 
-## 🎯 Selekcja kolumn - Uzasadnienie
+## Selekcja kolumn - Uzasadnienie
 
 **Dlaczego te 15 kolumn z 61?**
 
@@ -1028,7 +1016,7 @@ FINALNE 15 KOLUMN
 
 ---
 
-## 🔧 Troubleshooting
+## Troubleshooting
 
 ### Problem: "Plik nie znaleziony"
 ```
@@ -1122,7 +1110,7 @@ df = pd.read_csv(file, encoding='utf-8-sig')
 
 ---
 
-## 📈 Debugowanie poszczególnych kroków
+## Debugowanie poszczególnych kroków
 
 Jeśli pipeline się zawala, sprawdzaj po kolei:
 
@@ -1150,7 +1138,7 @@ python 06_data_export.py
 
 ---
 
-## 📊 Monitorowanie postępu
+## Monitorowanie postępu
 
 Podczas wykonania pipeline'u:
 
@@ -1162,9 +1150,9 @@ Podczas wykonania pipeline'u:
 ├─ [STAGE 2] Cleaning - SUCCESS (8.8s)
 ├─ [STAGE 3] Feature Engineering - SUCCESS (6.8s)
 ├─ [STAGE 4] Validation - SUCCESS (2.7s)
-│           └─ Quality Score: 84.4/100 ✅
+│           └─ Quality Score: 84.4/100
 ├─ [STAGE 5] Export - SUCCESS (6.2s)
-└─ [SUMMARY] Total time: 32.0s ✅
+└─ [SUMMARY] Total time: 32.0s
 ```
 
 Odczytaj log:
@@ -1240,7 +1228,7 @@ print(f"CV Score: {scores.mean():.3f} ± {scores.std():.3f}")
 
 ---
 
-## 📚 Dodatkowe materiały
+## Dodatkowe materiały
 
 **Dokumenty w projekcie:**
 - `PREPROCESSING_GUIDE.md` ← **Ty tutaj!**
@@ -1258,9 +1246,8 @@ print(f"CV Score: {scores.mean():.3f} ± {scores.std():.3f}")
 
 ---
 
-## 🚀 Podsumowanie - Szybki Start
+## Podsumowanie - Szybki Start
 
-**TL;DR - na szybko:**
 
 ```bash
 # 1. Pobierz dane (raz)
@@ -1273,7 +1260,7 @@ python 00_preprocessing_pipeline.py
 python -c "
 import pandas as pd
 df = pd.read_parquet('data/processed/games_final.parquet')
-print(f'✅ Gotowe! Shape: {df.shape}')
+print(f'Gotowe! Shape: {df.shape}')
 "
 
 # 4. Zasoby
@@ -1283,7 +1270,7 @@ test = pd.read_csv('data/processed/games_test.csv')      # 24k wierszy
 
 ---
 
-## 📄 Metadata
+## Metadata
 
 | Parametr | Wartość |
 |----------|---------|
@@ -1294,18 +1281,16 @@ test = pd.read_csv('data/processed/games_test.csv')      # 24k wierszy
 | **Finalne kolumny (ML)** | 15 |
 | **Wierszy** | 122,611 |
 | **Train/Test** | 98,089 / 24,522 (80/20) |
-| **Quality Score** | 84.4/100 ✅ |
+| **Quality Score** | 84.4/100 |
 | **Czas pipeline'u** | 32 sekundy |
 | **Rozmiar (CSV)** | 17 MB |
 | **Rozmiar (Parquet)** | 3.2 MB |
 | **Brakujące wartości** | < 4% (głównie Genres) |
-| **Duplikaty AppID** | 0 ✅ |
+| **Duplikaty AppID** | 0 |
 | **Python** | 3.8+ |
 | **Ostatnia aktualizacja** | 2026-04-18 |
 
 ---
 
 **Created**: 2026-04-18  
-**Pipeline Author**: ML Project Steam  
-**Status**: ✅ Production Ready
 
