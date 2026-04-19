@@ -1,15 +1,3 @@
-"""
-00_preprocessing_pipeline.py
-Glowny orchestrator pipleline'u preprocessingu
-
-Ten skrypt uruchamia wszystkie kroki preprocessingu w sekwencji:
-1. Eksploracja danych
-2. Czyszczenie danych
-3. Inżynieria cech
-4. Walidacja
-5. Export
-"""
-
 import subprocess
 import sys
 import time
@@ -64,7 +52,7 @@ class PreprocessingPipeline:
         try:
             start_time = time.time()
             
-            # Uruchom skrypt
+            # uruchom skrypt
             result = subprocess.run(
                 [sys.executable, str(script_path)],
                 capture_output=False,
@@ -170,7 +158,7 @@ class PreprocessingPipeline:
         logger.info(f"Data: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         logger.info("=" * 80)
         
-        # Utw katalogi
+        # Utworz katalogi
         (self.project_dir / "data" / "processed").mkdir(parents=True, exist_ok=True)
         (self.project_dir / "reports").mkdir(parents=True, exist_ok=True)
         

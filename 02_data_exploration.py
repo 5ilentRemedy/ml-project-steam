@@ -1,14 +1,3 @@
-"""
-02_data_exploration.py
-Eksploracja i analiza struktury danych
-
-Ten skrypt:
-- Ładuje dane z pliku CSV
-- Analizuje statystykę opisową
-- Sprawdza brakujące wartości
-- Generuje podstawowe wizualizacje
-"""
-
 import pandas as pd
 import numpy as np
 from pathlib import Path
@@ -24,7 +13,7 @@ def load_raw_data():
     """Ładuje surowe dane z pliku CSV"""
     data_dir = Path(__file__).parent / "data"
     
-    # Load only raw data (NOT processed files like games_cleaned.csv or games_engineered.csv)
+
     csv_files = sorted([f for f in data_dir.glob("games_*.csv") 
                        if f.stem != "games_cleaned" and f.stem != "games_engineered"])
     if not csv_files:
@@ -46,7 +35,7 @@ def load_raw_data():
             print(f"Błąd podczas pobierania danych: {e}")
             raise FileNotFoundError("Nie znaleziono pliku CSV w katalogu data/ i pobieranie zakończyło się błędem.")
 
-        # Ponowna próba znalezienia plików
+
         csv_files = sorted([f for f in data_dir.glob("games_*.csv") 
                            if f.stem != "games_cleaned" and f.stem != "games_engineered"])
 
@@ -62,7 +51,7 @@ def load_raw_data():
     return df
 
 def get_columns_info(df):
-    """Analizuje informacje o kolumnach"""
+    """Analiza informacji o kolumnach"""
     print("=" * 80)
     print("INFORMACJE O KOLUMNACH")
     print("=" * 80)
@@ -83,7 +72,6 @@ def get_columns_info(df):
             missing = df[col].isna().sum()
             missing_pct = (missing / len(df)) * 100
             
-            # Determine sample value based on dtype
             try:
                 import pandas as pd
                 if pd.api.types.is_numeric_dtype(df[col]):
@@ -100,7 +88,7 @@ def get_columns_info(df):
 def analyze_selected_data(df):
     """Analizuje szczegółowo wybrane kolumny"""
     print("\n" + "=" * 80)
-    print("ANALIZA SZCZEGOLOWA")
+    print("ANALIZA")
     print("=" * 80)
     
     # AppID
@@ -178,7 +166,7 @@ def main():
     # Zaladuj dane
     df = load_raw_data()
     
-    # Analizuj kolumny
+    # Analiza kolumn
     get_columns_info(df)
     
     # Szczegolowa analiza

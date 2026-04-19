@@ -1,6 +1,3 @@
-"""
-04_feature_engineering.py - Tworzenie i transformacja cech
-"""
 import pandas as pd
 import numpy as np
 from pathlib import Path
@@ -155,7 +152,7 @@ class FeatureEngineer:
         self.create_interaction_features()
         self.save_engineered_data()
         logger.info("\n" + "=" * 80)
-        logger.info("[OK] INZYNIERIA CECH UKONCZNA")
+        logger.info("[OK] INZYNIERIA CECH UKOŃCZONA")
         logger.info("=" * 80 + "\n")
         return self.df
 

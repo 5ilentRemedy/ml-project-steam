@@ -2,7 +2,7 @@
 
 ## Przegląd
 
-Ten projekt zawiera kompletny pipeline preprocessingu dla Steam Games Dataset przygotowując go do modelowania ML. Dataset zawiera informacje o  ponad 122k gier z 39 kolumnami oryginalnych danych.
+Dataset zawiera informacje o  ponad 122k gier z 39 kolumnami oryginalnych danych.
 
 ## Cel
 
@@ -22,29 +22,23 @@ Release date            - Data wydania
 Price                   - Cena
 Windows/Mac/Linux       - Obsługa platform
 Metacritic score        - Ocena Metacritic
-Achievements            - Liczba achievement'ów
+Achievements            - Liczba achievementów
 Developers              - Deweloperzy
 Publishers              - Wydawcy
 Categories              - Kategorie
 Genres                  - Gatunki
 User score              - Ocena użytkowników
 Score rank              - Ranking ocen
-Positive/Negative       - Liczba recenzji (pozytywne/negatywne)
+Positive/Negative       - Liczba recenzji - pozytywne/negatywne
 Estimated owners        - Szacunkowe posiadacze
 ```
-
-
-
-
-
-
 
 ## Struktura Pipeline'u
 
 ### 6 skryptów + Orchestrator:
 
 ```
-00_preprocessing_pipeline.py (ORCHESTRATOR)
+00_preprocessing_pipeline.py
    └─ Steruje całym procesem, łączy wszystkie 5 etapów
       ├─ Uruchamia etapy sekwencyjnie
       ├─ Weryfikuje kompletność plikań
@@ -113,11 +107,8 @@ python 01_data_collection.py
 ```bash
 python 00_preprocessing_pipeline.py
 ```
-
-To uruchomi automatycznie wszystkie 5 kroków sekwencyjnie:
-1. Eksploracja → 2. Czyszczenie → 3. Inżynieria cech → 4. Walidacja → 5. Export
-
-I wygeneruje pełne raporty + finalne dane do ML.
+Eksploracja → 2. Czyszczenie → 3. Inżynieria cech → 4. Walidacja → 5. Export
+oraz wygeneruje pełne raporty + finalne dane do ML.
 
 ### Opcja 2: Uruchom poszczególne kroki ręcznie
 

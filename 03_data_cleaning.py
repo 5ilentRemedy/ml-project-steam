@@ -1,6 +1,3 @@
-"""
-03_data_cleaning.py - Czyszczenie i standaryzacja danych
-"""
 import pandas as pd
 import numpy as np
 from pathlib import Path
@@ -164,7 +161,7 @@ class DataCleaner:
         self.validate_cleaned_data()
         self.save_cleaned_data()
         logger.info("\n" + "=" * 80)
-        logger.info("[OK] CZYSZCZENIE UKONCZNA")
+        logger.info("[OK] CZYSZCZENIE UKONCZONE")
         logger.info("=" * 80 + "\n")
         return self.df
 

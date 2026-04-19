@@ -1,6 +1,3 @@
-"""
-06_data_export.py - Export i przygotowanie danych do modelowania ML
-"""
 import pandas as pd
 import numpy as np
 from pathlib import Path
@@ -22,7 +19,7 @@ try:
     HAS_OPENPYXL = True
 except ImportError:
     HAS_OPENPYXL = False
-    logger.warning("openpyxl nie zainstalowany - XLSX z filtrami nie będą generowane")
+    logger.warning("openpyxl nie zainstalowany - XLSX z filtrami nie będą generowane << dorzuć openpyxl do requirements.txt i zainstaluj, aby mieć te pliki >>")
 
 class DataExporter:
     def __init__(self):
@@ -440,8 +437,8 @@ Wygenerowano: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
             logger.info("  ✓ games_test_with_filters.xlsx (20% testowe)")
             logger.info("  ✓ games_final_grouped.xlsx (8 arkuszy z grupami)")
         else:
-            logger.info("  ⚠ openpyxl nie dostępny - XLSX nie wygenerowane")
-        logger.info("\n📄 DOKUMENTACJA:")
+            logger.info("openpyxl nie dostępny - XLSX nie wygenerowane << dorzuć openpyxl do requirements.txt i zainstaluj, aby mieć te pliki >>")
+        logger.info("\n DOKUMENTACJA:")
         logger.info("  ✓ columns_documentation.csv")
         logger.info("  ✓ dataset_manifest.json")
         logger.info("  ✓ README.md")
