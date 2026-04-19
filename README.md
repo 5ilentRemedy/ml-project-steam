@@ -1,8 +1,3 @@
-"""
-PREPROCESSING_GUIDE.md
-Kompletny przewodnik preprocessingu danych Steam Games Dataset
-"""
-
 # Steam Games Dataset - Preprocessing Pipeline
 
 ## 📋 Przegląd
