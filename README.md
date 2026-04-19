@@ -998,19 +998,18 @@ FINALNE 15 KOLUMN
 **Co zostało wykluczone z 61:**
 
 ```
-❌ 8 znormalizowanych (Price_normalized, etc.)
+8 znormalizowanych (Price_normalized, etc.)
    → Użytkownik może standaryzować sam, redundantne
 
-❌ 3 cechy interakcji (Price_Rating_ratio, etc.)
+3 cechy interakcji (Price_Rating_ratio, etc.)
    → Niskie znaczenie predykcyjne (sprawdzono korelacje)
 
-❌ 5 kategorii one-hot (Metacritic_category, Price_category)
+5 kategorii one-hot (Metacritic_category, Price_category)
    → Zbyt szczegółowe, lepiej użyć bezpośrednio wartości
-
-❌ 4 binarne flagi platform (Has_windows, Has_mac, Has_linux)
+4 binarne flagi platform (Has_windows, Has_mac, Has_linux)
    → Redundantne wobec Platform_count, zawarte w agregacji
 
-❌ 26 innych
+26 innych
    → Redundancja, multicollinearity, niska predykcyjność
 ```
 
@@ -1143,7 +1142,7 @@ python 06_data_export.py
 Podczas wykonania pipeline'u:
 
 ```
-📋 Log: preprocessing.log
+Log: preprocessing.log
 ├─ [INFO] Starting pipeline...
 ├─ [STAGE 1] Exploration - START
 ├─ [STAGE 1] Exploration - SUCCESS (7.5s)
@@ -1169,7 +1168,7 @@ grep "SUCCESS\|FAILED" preprocessing.log
 
 ---
 
-## 🎓 Kolejne kroki po preprocessingu
+## Kolejne kroki po preprocessingu
 
 Po pomyślnym wykonaniu pipeline'u i uzyskaniu 15 kolumn:
 
