@@ -1,15 +1,10 @@
-"""
-PREPROCESSING_GUIDE.md
-Kompletny przewodnik preprocessingu danych Steam Games Dataset
-"""
-
 # Steam Games Dataset - Preprocessing Pipeline
 
-## 📋 Przegląd
+## Przegląd
 
 Ten projekt zawiera kompletny pipeline preprocessingu dla Steam Games Dataset przygotowując go do modelowania ML. Dataset zawiera informacje o **122,611 grach** z **39 kolumnami** oryginalnych danych.
 
-## 🎯 Cel
+## Cel
 
 Transformacja surowych danych z Kaggle w czysty, dobrze ustrukturyzowany dataset gotowy do:
 - Exploratory Data Analysis (EDA)
@@ -17,7 +12,7 @@ Transformacja surowych danych z Kaggle w czysty, dobrze ustrukturyzowany dataset
 - Statystycznej analizy
 - Wizualizacji danych
 
-## 📊 Wybrane kolumny do analizy
+## Wybrane kolumny do analizy
 
 ### Kolumny wybrane z oryginalnego datasetu:
 ```
@@ -38,7 +33,13 @@ Positive/Negative       - Liczba recenzji (pozytywne/negatywne)
 Estimated owners        - Szacunkowe posiadacze
 ```
 
-## 🔄 Struktura Pipeline'u
+
+
+
+
+
+
+## Struktura Pipeline'u
 
 ### 6 skryptów + Orchestrator:
 
@@ -98,7 +99,7 @@ KROK 5: EXPORT (06_data_export.py)
    └─ README i instrukcje
 ```
 
-## 🚀 Uruchamianie Pipeline'u
+## Uruchamianie Pipeline'u
 
 ### Kroki przygotowawcze (wykonaj raz)
 
@@ -107,7 +108,7 @@ KROK 5: EXPORT (06_data_export.py)
 python 01_data_collection.py
 ```
 
-### Opcja 1: Uruchom cały pipeline (REKOMENDOWANE) ⭐
+### Opcja 1: Uruchom cały pipeline
 
 ```bash
 python 00_preprocessing_pipeline.py
@@ -137,13 +138,13 @@ python 05_data_validation.py
 python 06_data_export.py
 ```
 
-## 📁 Struktura katalogów
+## Struktura katalogów
 
 Po wykonaniu pipeline'u:
 
 ```
 ml-project-steam/
-├── 00_preprocessing_pipeline.py    # ⭐ Orchestrator pipeline'u (uruchom to)
+├── 00_preprocessing_pipeline.py    # Orchestrator pipeline'u (uruchom to)
 ├── 01_data_collection.py           # Pobieranie danych z Kaggle (wykonaj raz)
 ├── 02_data_exploration.py          # Krok 1 - Eksploracja
 ├── 03_data_cleaning.py             # Krok 2 - Czyszczenie
@@ -159,13 +160,13 @@ ml-project-steam/
 │   │
 │   └── processed/                  # Finalne dane dla ML (15 kolumn)
 │       │
-│       ├─ 📋 PLIKI GŁÓWNE (CSV/Parquet)
+│       ├─ PLIKI GŁÓWNE (CSV/Parquet)
 │       ├── games_final.csv         # CSV z 15 best features
 │       ├── games_final.parquet     # Parquet (szybciej, ~3MB)
 │       ├── games_train.csv         # 80% (98,089 wierszy) do treningu
 │       ├── games_test.csv          # 20% (24,522 wierszy) do testowania
 │       │
-│       ├─ 📁 CSV Z GRUPAMI KOLUMN (nowe!)
+│       ├─ CSV Z GRUPAMI KOLUMN (nowe!)
 │       ├── games_group_identifiers.csv  # AppID, Name
 │       ├── games_group_temporal.csv     # Release_year, Days_since_release
 │       ├── games_group_platform.csv     # Platform_count
@@ -175,13 +176,13 @@ ml-project-steam/
 │       ├── games_group_price.csv        # Price, Is_free
 │       ├── games_group_metadata.csv     # Genres
 │       │
-│       ├─ 🔍 XLSX Z FILTRAMI NA NAGŁÓWKACH (nowe!)
+│       ├─ XLSX Z FILTRAMI NA NAGŁÓWKACH (nowe!)
 │       ├── games_final_with_filters.xlsx      # Wszystkie dane z filtrami autofilter
 │       ├── games_train_with_filters.xlsx      # 80% z filtrami autofilter
 │       ├── games_test_with_filters.xlsx       # 20% z filtrami autofilter
 │       ├── games_final_grouped.xlsx           # 8 arkuszy (jeden per grupa)
 │       │
-│       ├─ 📄 DOKUMENTACJA
+│       ├─ DOKUMENTACJA
 │       ├── dataset_manifest.json      # Metadata i statystyka
 │       ├── columns_documentation.csv  # Info o każdej kolumnie
 │       └── README.md                  # Dokumentacja finalna
@@ -193,28 +194,28 @@ ml-project-steam/
     └── preprocessing.log           # Log wykonania wszystkich 5 kroków
 ```
 
-### 📊 Rodzaje generowanych plików:
+###  Rodzaje generowanych plików:
 
-**📋 PLIKI GŁÓWNE** (standardowe CSV/Parquet):
+**PLIKI GŁÓWNE** (standardowe CSV/Parquet):
 - `games_final.csv` - Wszystkie 122,611 gier × 15 kolumn
 - `games_train.csv` - 98,089 gier do trenowania modeli
 - `games_test.csv` - 24,522 gry do testowania
 - `games_final.parquet` - Format binarny (3x mniejszy)
 
-**📁 CSV Z GRUPAMI KOLUMN** (nowe!):
+** CSV Z GRUPAMI KOLUMN** (nowe!):
 Każdy plik zawiera podgrupę powiązanych cech:
 - Umożliwia pracę z konkretnymi grupami atrybutów
 - Idealne dla eksploracyjnej analizy (EDA)
 - Przydatne dla feature selection w ML
 
-**🔍 XLSX Z FILTRAMI** (nowe!):
+** XLSX Z FILTRAMI** (nowe!):
 - **Autofilter na nagłówkach** - Możliwość sortowania/filtrowania w Excelu
 - **Zamrożone nagłówki** - Pierwszy wiersz zawsze widoczny
 - **Formatowanie** - Liczby sformatowane (2 miejsca dziesiętne)
 - 3 wersje danych: wszystkie + train + test
 - **games_final_grouped.xlsx** - 8 arkuszy (jeden na grupę)
 
-## 📊 Finalne 15 kolumn do modelowania ML
+## Finalne 15 kolumn do modelowania ML
 
 Po inżynierii cech i selekcji pipeline wybiera 15 najwartościowszych kolumn:
 
@@ -243,7 +244,7 @@ Po inżynierii cech i selekcji pipeline wybiera 15 najwartościowszych kolumn:
 - Brakujące wartości: < 8% (tylko Genres)
 - Quality Score: 84.4/100
 
-## � Szczegółowy opis każdego skryptu
+## Szczegółowy opis każdego skryptu
 
 ### **01_data_collection.py** - Pobieranie danych
 **Czas wykonania:** ~5-30 sekund (zależy od internetu)
