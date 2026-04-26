@@ -212,3 +212,7 @@ __marimo__/
 *.parquet
 *.xlsx
 
+### Output files after pipeline runs
+*.joblib
+*.png
+Raport*.md

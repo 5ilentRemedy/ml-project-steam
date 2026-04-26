@@ -57,17 +57,26 @@ class FeatureEngineer:
         return self.df
     
     def create_score_features(self):
-        logger.info("Tworzenie cech ocen...")
-        self.df['Has_metacritic'] = (~self.df['Metacritic score'].isna()).astype(int)
-        self.df['Metacritic_category'] = pd.cut(
-            self.df['Metacritic score'], bins=[0, 50, 70, 80, 100],
-            labels=['Poor', 'Fair', 'Good', 'Excellent'], include_lowest=True
-        ).astype(str)
-        self.df['Metacritic_category'] = self.df['Metacritic_category'].fillna('Unknown')
-        self.df['Is_highly_rated'] = (self.df['Metacritic score'] >= 75).astype(int)
-        self.df['User_score_normalized'] = self.df['User score'] / 10.0
-        logger.info("[OK] Cechy ocen utworzone")
-        return self.df
+            logger.info("Tworzenie cech ocen...")
+            self.df['Has_metacritic'] = (~self.df['Metacritic score'].isna()).astype(int)
+            self.df['Metacritic_category'] = pd.cut(
+                self.df['Metacritic score'], bins=[0, 50, 70, 80, 100],
+                labels=['Poor', 'Fair', 'Good', 'Excellent'], include_lowest=True
+            ).astype(str)
+            self.df['Metacritic_category'] = self.df['Metacritic_category'].fillna('Unknown')
+            
+            # --- ZMIANA: Nowa, znacznie lepsza definicja sukcesu gry ---
+            # Gra jest uznana za sukces (1), jeśli ma minimum 30 recenzji 
+            # i przynajmniej 80% z nich jest pozytywnych (tzw. "Very Positive" na Steam).
+            self.df['Is_highly_rated'] = ((self.df['Review_ratio'] >= 0.80) & (self.df['Total_reviews'] >= 30)).astype(int)
+            
+            self.df['User_score_normalized'] = self.df['User score'] / 10.0
+            
+            # Dodajemy logowanie, żebyś widział ile gier odniosło sukces
+            success_count = self.df['Is_highly_rated'].sum()
+            logger.info(f"[INFO] Gier ze statusem 'Sukces' (Is_highly_rated=1): {success_count} na {len(self.df)}")
+            logger.info("[OK] Cechy ocen utworzone")
+            return self.df
     
     def create_content_features(self):
         logger.info("Tworzenie cech zawartosci...")

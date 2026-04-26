@@ -33,4 +33,4 @@ test_df = pd.read_csv('games_test.csv')
 ```
 
 ---
-Wygenerowano: 2026-04-26 12:53:06
+Wygenerowano: 2026-04-26 12:58:50
