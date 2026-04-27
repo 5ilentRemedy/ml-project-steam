@@ -216,3 +216,4 @@ __marimo__/
 *.joblib
 *.png
 Raport*.md
+dataset_documentation.*

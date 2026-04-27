@@ -219,7 +219,7 @@ test_df = pd.read_csv('games_test.csv')
 ---
 Wygenerowano: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 """
-        readme_file = output_dir / "README.md"
+        readme_file = output_dir / "dataset_documentation.md"
         with open(readme_file, 'w', encoding='utf-8') as f:
             f.write(readme_content)
         logger.info(f"[OK] README: {readme_file.name}")
