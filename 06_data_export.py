@@ -441,12 +441,12 @@ Wygenerowano: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
         logger.info("\n DOKUMENTACJA:")
         logger.info("  ✓ columns_documentation.csv")
         logger.info("  ✓ dataset_manifest.json")
-        logger.info("  ✓ README.md")
+        logger.info("  ✓ dataset_documentation.md")
         logger.info("  - games_train.csv")
         logger.info("  - games_test.csv")
         logger.info("  - dataset_manifest.json")
         logger.info("  - columns_documentation.csv")
-        logger.info("  - README.md")
+        logger.info("  - dataset_documentation.md")
 
 def main():
     exporter = DataExporter()
