@@ -4,10 +4,6 @@ from pathlib import Path
 import json
 import logging
 from datetime import datetime
-import sys, io
-
-if sys.stdout.encoding and 'utf' not in sys.stdout.encoding.lower():
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -77,8 +73,6 @@ class DataExporter:
         output_dir.mkdir(parents=True, exist_ok=True)
 
         df_shuffled = self.df.sample(frac=1, random_state=random_state).reset_index(drop=True)
-
-        total_len = len(df_shuffled)
         train_end = int(total_len * train_ratio)
         val_end = train_end + int(total_len * val_ratio)
 
@@ -166,8 +160,8 @@ class DataExporter:
             'total_records': len(self.df),
             'total_features': len(self.df.columns),
             'data_shape': list(self.df.shape),
-            'feature_groups': self.export_info.get('feature_groups', {}), # This will be populated by create_feature_groups
-            'train_val_test_split': self.export_info.get('train_val_test_split', {}), # This will be populated by create_train_val_test_split
+            'feature_groups': self.export_info.get('feature_groups', {}),
+            'train_val_test_split': self.export_info.get('train_val_test_split', {}),
             'files': {
                 'main_data': 'games_final.csv',
                 'parquet_data': 'games_final.parquet',
@@ -222,13 +216,10 @@ Przetworzony dataset gier ze Steam przygotowany do modelowania ML.
 ```python
 import pandas as pd
 
-# CSV
 df = pd.read_csv('games_final.csv')
 
-# Parquet (szybsze)
 df = pd.read_parquet('games_final.parquet')
 
-# Train/Test split
 val_df = pd.read_csv('games_val.csv')
 train_df = pd.read_csv('games_train.csv')
 test_df = pd.read_csv('games_test.csv')
@@ -253,7 +244,6 @@ Wygenerowano: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
         logger.info(f"[OK] Streszczenie exportu: {summary_file.name}")
     
     def export_feature_groups_csv(self):
-        """Generuje osobne CSV dla każdej grupy cech"""
         logger.info("Generowanie CSV dla grup cech...")
         output_dir = Path(__file__).parent / "data" / "processed"
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -278,7 +268,6 @@ Wygenerowano: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
                 logger.info(f"  [OK] {group_name}: {group_file.name} ({len(cols_present)} kolumn)")
     
     def export_with_filters_xlsx(self):
-        """Generuje XLSX z filtrami na nagłówkach i zamrożonymi wierszami"""
         if not HAS_OPENPYXL:
             logger.warning("  [SKIP] openpyxl nie dostępny - pomijanie XLSX z filtrami")
             return
@@ -292,7 +281,6 @@ Wygenerowano: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
         self._create_xlsx_with_filters(self.df, output_file, "Games Data")
         logger.info(f"  [OK] games_final_with_filters.xlsx")
         
-        # Train set z filtrami (używamy już utworzonego self.train_df)
         if self.train_df is not None:
             train_file = output_dir / "games_train_with_filters.xlsx"
             self._create_xlsx_with_filters(self.train_df, train_file, "Training Data")
@@ -300,7 +288,6 @@ Wygenerowano: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
         else:
             logger.warning("  [SKIP] Brak danych treningowych do eksportu XLSX.")
 
-        # Validation set z filtrami (używamy już utworzonego self.val_df)
         if self.val_df is not None:
             val_file = output_dir / "games_val_with_filters.xlsx"
             self._create_xlsx_with_filters(self.val_df, val_file, "Validation Data")
@@ -308,7 +295,6 @@ Wygenerowano: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
         else:
             logger.warning("  [SKIP] Brak danych walidacyjnych do eksportu XLSX.")
         
-        # Test set z filtrami (używamy już utworzonego self.test_df)
         if self.test_df is not None:
             test_file = output_dir / "games_test_with_filters.xlsx"
             self._create_xlsx_with_filters(self.test_df, test_file, "Test Data")
@@ -317,12 +303,10 @@ Wygenerowano: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
             logger.warning("  [SKIP] Brak danych testowych do eksportu XLSX.")
     
     def _create_xlsx_with_filters(self, df, output_file, sheet_name="Data"):
-        """Helper: Tworzy XLSX z filtrami i zamrożonymi nagłówkami"""
         wb = Workbook()
         ws = wb.active
         ws.title = sheet_name
         
-        # Wpisz nagłówki
         for col_idx, col_name in enumerate(df.columns, 1):
             cell = ws.cell(row=1, column=col_idx, value=col_name)
             cell.font = cell.font.copy()
@@ -335,10 +319,9 @@ Wygenerowano: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
         for row_idx, row in enumerate(df.values, 2):
             for col_idx, value in enumerate(row, 1):
                 cell = ws.cell(row=row_idx, column=col_idx, value=value)
-                # Formatowanie liczb
                 if isinstance(value, float):
                     cell.number_format = '0.00'
-                elif isinstance(value, int) and col_idx != 1:  # Nie formatuj AppID
+                elif isinstance(value, int) and col_idx != 1:
                     cell.number_format = '0'
         
         # Ustaw szerokość kolumn
@@ -346,10 +329,8 @@ Wygenerowano: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
             width = max(len(str(col_name)), 12)
             ws.column_dimensions[get_column_letter(col_idx)].width = width
         
-        # Zamróż nagłówek (pierwszy wiersz)
         ws.freeze_panes = "A2"
         
-        # Dodaj filtry autofilter
         max_row = len(df) + 1
         max_col = len(df.columns)
         ws.auto_filter.ref = f"A1:{get_column_letter(max_col)}{max_row}"
@@ -357,7 +338,6 @@ Wygenerowano: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
         wb.save(output_file)
     
     def export_grouped_xlsx(self):
-        """Generuje XLSX z oddzielnymi arkuszami dla każdej grupy cech"""
         if not HAS_OPENPYXL:
             logger.warning("  [SKIP] openpyxl nie dostępny - pomijanie XLSX z grupami")
             return
@@ -379,7 +359,7 @@ Wygenerowano: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
         
         output_file = output_dir / "games_final_grouped.xlsx"
         wb = Workbook()
-        wb.remove(wb.active)  # Usuń domyślny arkusz
+        wb.remove(wb.active)
         
         for group_name, columns in feature_groups.items():
             cols_present = [col for col in columns if col in self.df.columns]
@@ -387,7 +367,6 @@ Wygenerowano: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
                 ws = wb.create_sheet(group_name)
                 group_df = self.df[cols_present].copy()
                 
-                # Nagłówki
                 for col_idx, col_name in enumerate(cols_present, 1):
                     cell = ws.cell(row=1, column=col_idx, value=col_name)
                     from openpyxl.styles import Font, PatternFill
@@ -401,7 +380,6 @@ Wygenerowano: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
                         if isinstance(value, float):
                             cell.number_format = '0.00'
                 
-                # Zamróż nagłówek i szerokość
                 ws.freeze_panes = "A2"
                 for col_idx, col_name in enumerate(cols_present, 1):
                     width = max(len(str(col_name)), 12)
@@ -419,19 +397,16 @@ Wygenerowano: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
         self.load_data()
         self.select_final_features()
         
-        # ISTNIEJĄCE PLIKI
         logger.info("\n>>> PLIKI GŁÓWNE (CSV/Parquet)")
         self.export_csv()
         self.export_parquet()
         self.create_train_val_test_split()
         
-        # NOWE PLIKI - GRUPY I FILTRY
         logger.info("\n>>> PLIKI Z GRUPAMI I FILTRAMI")
         self.export_feature_groups_csv()
         self.export_with_filters_xlsx()
         self.export_grouped_xlsx()
         
-        # DOKUMENTACJA
         logger.info("\n>>> DOKUMENTACJA")
         self.create_feature_groups()
         self.create_data_documentation()
