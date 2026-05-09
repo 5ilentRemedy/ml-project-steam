@@ -205,3 +205,15 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# dataset
+*.csv
+*.json
+*.parquet
+*.xlsx
+
+### Output files after pipeline runs
+*.joblib
+*.png
+Raport*.md
+dataset_documentation.*

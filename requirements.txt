@@ -1,0 +1,12 @@
+pandas
+numpy
+scikit-learn
+matplotlib
+seaborn
+joblib
+openpyxl
+kagglehub
+shap
+lightgbm
+xgboost
+packaging
