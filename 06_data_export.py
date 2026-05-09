@@ -437,7 +437,7 @@ Wygenerowano: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
             logger.info("  ✓ games_test_with_filters.xlsx (20% testowe)")
             logger.info("  ✓ games_final_grouped.xlsx (8 arkuszy z grupami)")
         else:
-            logger.info("openpyxl nie dostępny - XLSX nie wygenerowane << dorzuć openpyxl do requirements.txt i zainstaluj, aby mieć te pliki >>")
+            logger.info("openpyxl nie dostępny - XLSX nie wygenerowane << dodaj openpyxl do requirements.txt i zainstaluj, aby mieć te pliki >>")
         logger.info("\n DOKUMENTACJA:")
         logger.info("  ✓ columns_documentation.csv")
         logger.info("  ✓ dataset_manifest.json")
