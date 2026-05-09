@@ -23,8 +23,8 @@ ml-project-steam/
 ├── 03_data_cleaning.py             # Krok 2: Czyszczenie danych
 ├── 04_feature_engineering.py       # Krok 3: Inżynieria cech
 ├── 05_data_validation.py           # Krok 4: Walidacja danych
-├── 06a_data_validator.py           # Krok 5: Dodatkowa walidacja i analiza danych
 ├── 06_data_export.py               # Krok 5: Export i przygotowanie danych do ML
+├── 06a_data_validator.py           # Krok 5: Dodatkowa walidacja i analiza danych
 ├── 07_model_training.py            # Krok 6: Trenowanie i porównywanie modeli ML
 ├── 08_model_evaluation.py          # Krok 7: Ewaluacja modelu i wizualizacje
 ├── 09_predict_cli.py               # Krok 8: Interaktywne narzędzie CLI do predykcji

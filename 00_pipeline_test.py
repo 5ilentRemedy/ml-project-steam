@@ -29,8 +29,8 @@ class FullMLPipeline:
             ('03_data_cleaning.py', 'Czyszczenie danych'),
             ('04_feature_engineering.py', 'Inzynieria cech'),
             ('05_data_validation.py', 'Walidacja danych'),
-            ('06a_data_validator.py', 'Walidacja i analiza danych'),
             ('06_data_export.py', 'Export i przygotowanie'),
+            ('06a_data_validator.py', 'Walidacja i analiza danych'),
             ('07_model_training.py', 'Trenowanie modeli ML'),
             ('08_model_evaluation.py', 'Ewaluacja i wizualizacja')
         ]
