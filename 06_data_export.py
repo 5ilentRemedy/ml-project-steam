@@ -414,7 +414,7 @@ Wygenerowano: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
         logger.info("\n>>> PLIKI GŁÓWNE (CSV/Parquet)")
         self.export_csv()
         self.export_parquet()
-        self.create_train_test_split()
+        self.create_train_val_test_split()
         
         # NOWE PLIKI - GRUPY I FILTRY
         logger.info("\n>>> PLIKI Z GRUPAMI I FILTRAMI")
