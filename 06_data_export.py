@@ -292,20 +292,29 @@ Wygenerowano: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
         self._create_xlsx_with_filters(self.df, output_file, "Games Data")
         logger.info(f"  [OK] games_final_with_filters.xlsx")
         
-        # Train set z filtrami
-        np.random.seed(42)
-        test_indices = np.random.choice(len(self.df), size=int(len(self.df) * 0.2), replace=False)
-        train_df = self.df.drop(test_indices)
+        # Train set z filtrami (używamy już utworzonego self.train_df)
+        if self.train_df is not None:
+            train_file = output_dir / "games_train_with_filters.xlsx"
+            self._create_xlsx_with_filters(self.train_df, train_file, "Training Data")
+            logger.info(f"  [OK] games_train_with_filters.xlsx ({len(self.train_df)} wierszy)")
+        else:
+            logger.warning("  [SKIP] Brak danych treningowych do eksportu XLSX.")
+
+        # Validation set z filtrami (używamy już utworzonego self.val_df)
+        if self.val_df is not None:
+            val_file = output_dir / "games_val_with_filters.xlsx"
+            self._create_xlsx_with_filters(self.val_df, val_file, "Validation Data")
+            logger.info(f"  [OK] games_val_with_filters.xlsx ({len(self.val_df)} wierszy)")
+        else:
+            logger.warning("  [SKIP] Brak danych walidacyjnych do eksportu XLSX.")
         
-        train_file = output_dir / "games_train_with_filters.xlsx"
-        self._create_xlsx_with_filters(train_df, train_file, "Training Data")
-        logger.info(f"  [OK] games_train_with_filters.xlsx ({len(train_df)} wierszy)")
-        
-        # Test set z filtrami
-        test_df = self.df.iloc[test_indices]
-        test_file = output_dir / "games_test_with_filters.xlsx"
-        self._create_xlsx_with_filters(test_df, test_file, "Test Data")
-        logger.info(f"  [OK] games_test_with_filters.xlsx ({len(test_df)} wierszy)")
+        # Test set z filtrami (używamy już utworzonego self.test_df)
+        if self.test_df is not None:
+            test_file = output_dir / "games_test_with_filters.xlsx"
+            self._create_xlsx_with_filters(self.test_df, test_file, "Test Data")
+            logger.info(f"  [OK] games_test_with_filters.xlsx ({len(self.test_df)} wierszy)")
+        else:
+            logger.warning("  [SKIP] Brak danych testowych do eksportu XLSX.")
     
     def _create_xlsx_with_filters(self, df, output_file, sheet_name="Data"):
         """Helper: Tworzy XLSX z filtrami i zamrożonymi nagłówkami"""
@@ -414,7 +423,7 @@ Wygenerowano: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
         logger.info("\n>>> PLIKI GŁÓWNE (CSV/Parquet)")
         self.export_csv()
         self.export_parquet()
-        self.create_train_test_split()
+        self.create_train_val_test_split()
         
         # NOWE PLIKI - GRUPY I FILTRY
         logger.info("\n>>> PLIKI Z GRUPAMI I FILTRAMI")
@@ -438,6 +447,7 @@ Wygenerowano: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
         logger.info("  ✓ games_final.csv")
         logger.info("  ✓ games_final.parquet")
         logger.info("  ✓ games_train.csv")
+        logger.info("  ✓ games_val.csv")
         logger.info("  ✓ games_test.csv")
         logger.info("\n GRUPY KOLUMN (nowe):")
         logger.info("  ✓ games_group_identifiers.csv")
@@ -451,8 +461,9 @@ Wygenerowano: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
         logger.info("\n XLSX Z FILTRAMI (nowe):")
         if HAS_OPENPYXL:
             logger.info("  ✓ games_final_with_filters.xlsx (wszystkie dane)")
-            logger.info("  ✓ games_train_with_filters.xlsx (80% treningowe)")
-            logger.info("  ✓ games_test_with_filters.xlsx (20% testowe)")
+            logger.info("  ✓ games_train_with_filters.xlsx (70% treningowe)")
+            logger.info("  ✓ games_val_with_filters.xlsx (15% walidacyjne)")
+            logger.info("  ✓ games_test_with_filters.xlsx (15% testowe)")
             logger.info("  ✓ games_final_grouped.xlsx (8 arkuszy z grupami)")
         else:
             logger.info("openpyxl nie dostępny - XLSX nie wygenerowane << dodaj openpyxl do requirements.txt i zainstaluj, aby mieć te pliki >>")
@@ -460,11 +471,6 @@ Wygenerowano: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
         logger.info("  ✓ columns_documentation.csv")
         logger.info("  ✓ dataset_manifest.json")
         logger.info("  ✓ dataset_documentation.md")
-        logger.info("  - games_train.csv")
-        logger.info("  - games_test.csv")
-        logger.info("  - dataset_manifest.json")
-        logger.info("  - columns_documentation.csv")
-        logger.info("  - dataset_documentation.md")
 
 def main():
     exporter = DataExporter()
