@@ -5,6 +5,7 @@ import json
 import logging
 from datetime import datetime
 import sys, io
+from sklearn.model_selection import train_test_split
 
 if sys.stdout.encoding and 'utf' not in sys.stdout.encoding.lower():
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
@@ -72,19 +73,41 @@ class DataExporter:
         return self.df
     
     def create_train_val_test_split(self, train_ratio=0.7, val_ratio=0.15, test_ratio=0.15, random_state=42):
-        logger.info(f"Tworzenie train/val/test splitu (train={train_ratio*100:.0f}%/val={val_ratio*100:.0f}%/test={test_ratio*100:.0f}%)...")
+        logger.info(f"Tworzenie train/val/test splitu ze stratyfikacja (train={train_ratio*100:.0f}%/val={val_ratio*100:.0f}%/test={test_ratio*100:.0f}%)...")
         output_dir = Path(__file__).parent / "data" / "processed"
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        df_shuffled = self.df.sample(frac=1, random_state=random_state).reset_index(drop=True)
+        # Sprawdz czy kolumna do stratyfikacji istnieje
+        stratify_col = 'Is_highly_rated' if 'Is_highly_rated' in self.df.columns else None
 
-        total_len = len(df_shuffled)
-        train_end = int(total_len * train_ratio)
-        val_end = train_end + int(total_len * val_ratio)
-
-        self.train_df = df_shuffled.iloc[:train_end]
-        self.val_df = df_shuffled.iloc[train_end:val_end]
-        self.test_df = df_shuffled.iloc[val_end:]
+        # Pierwszy split: train (70%) vs temp (30%) ze stratyfikacja
+        if stratify_col:
+            logger.info(f"[INFO] Stratyfikacja wg kolumny: {stratify_col}")
+            self.train_df, temp_df = train_test_split(
+                self.df,
+                train_size=train_ratio,
+                random_state=random_state,
+                stratify=self.df[stratify_col]
+            )
+            # Drugi split: validation (50%) vs test (50%) ze stratyfikacja
+            self.val_df, self.test_df = train_test_split(
+                temp_df,
+                train_size=0.5,
+                random_state=random_state,
+                stratify=temp_df[stratify_col]
+            )
+        else:
+            logger.warning("[!] Kolumna stratyfikacji nie znaleziona. Stosowanie losowego podzialu.")
+            self.train_df, temp_df = train_test_split(
+                self.df,
+                train_size=train_ratio,
+                random_state=random_state
+            )
+            self.val_df, self.test_df = train_test_split(
+                temp_df,
+                train_size=0.5,
+                random_state=random_state
+            )
 
         train_file = output_dir / "games_train.csv"
         val_file = output_dir / "games_val.csv"
@@ -92,9 +115,19 @@ class DataExporter:
         self.train_df.to_csv(train_file, index=False)
         self.val_df.to_csv(val_file, index=False)
         self.test_df.to_csv(test_file, index=False)
+
+        total_len = len(self.train_df) + len(self.val_df) + len(self.test_df)
         logger.info(f"[OK] Train set: {len(self.train_df)} wierszy ({len(self.train_df)/total_len*100:.1f}%)")
         logger.info(f"[OK] Validation set: {len(self.val_df)} wierszy ({len(self.val_df)/total_len*100:.1f}%)")
         logger.info(f"[OK] Test set: {len(self.test_df)} wierszy ({len(self.test_df)/total_len*100:.1f}%)")
+
+        # Sprawdzenie rozkładu klas w zbiorach
+        if stratify_col:
+            logger.info(f"\n[INFO] Rozkład {stratify_col} w zbiorach:")
+            for name, df in [('Train', self.train_df), ('Validation', self.val_df), ('Test', self.test_df)]:
+                dist = df[stratify_col].value_counts(normalize=True).to_dict()
+                logger.info(f"  {name}: {dist}")
+
         self.export_info['train_val_test_split'] = {
             'train_file': str(train_file),
             'val_file': str(val_file),
@@ -102,7 +135,9 @@ class DataExporter:
             'train_size': len(self.train_df),
             'val_size': len(self.val_df),
             'test_size': len(self.test_df),
-            'split_ratios': {'train': train_ratio, 'val': val_ratio, 'test': test_ratio}
+            'split_ratios': {'train': train_ratio, 'val': val_ratio, 'test': test_ratio},
+            'stratified': True,
+            'stratify_column': stratify_col
         }
         return self.train_df, self.val_df, self.test_df
     
