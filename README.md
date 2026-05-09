@@ -23,6 +23,7 @@ ml-project-steam/
 ├── 03_data_cleaning.py             # Krok 2: Czyszczenie danych
 ├── 04_feature_engineering.py       # Krok 3: Inżynieria cech
 ├── 05_data_validation.py           # Krok 4: Walidacja danych
+├── 06a_data_validator.py           # Krok 5: Dodatkowa walidacja i analiza danych
 ├── 06_data_export.py               # Krok 5: Export i przygotowanie danych do ML
 ├── 07_model_training.py            # Krok 6: Trenowanie i porównywanie modeli ML
 ├── 08_model_evaluation.py          # Krok 7: Ewaluacja modelu i wizualizacje
@@ -49,6 +50,8 @@ ml-project-steam/
 │   ├── 01_exploration_summary.json # Raport z eksploracji
 │   ├── 02_validation_report.json   # Raport z walidacji danych
 │   ├── 03_export_summary.json      # Raport z eksportu danych
+│   ├── outlier_report_iqr.csv      # Raport z wykrytymi outlierami
+│   ├── significant_correlations_report.csv # Raport z istotnymi korelacjami
 │   ├── 04_model_training_report.json # Raport z treningu modeli
 │   ├── 05_evaluation_metrics.json  # Raport z metryk ewaluacji
 │   └── figures/                    # Wykresy i wizualizacje
@@ -56,6 +59,11 @@ ml-project-steam/
 │       ├── roc_pr_curves.png
 │       ├── feature_importance.png
 │       └── shap_summary.png
+│   └── plots/                      # Wykresy z dodatkowej walidacji
+│       ├── correlation_distribution_histogram.png
+│       ├── correlation_heatmap.png
+│       ├── histogram_*.png         # Histogramy dla poszczególnych cech
+│       └── boxplot_outliers_*.png  # Boxploty dla kolumn z outlierami
 ├── reports/predictions/            # Raporty z predykcji CLI
 │   └── Raport_*.md
 └── requirements.txt                # Wymagane pakiety Pythona
@@ -89,6 +97,13 @@ ml-project-steam/
 
 - **Funkcja**: Przeprowadza kompleksową walidację danych po inżynierii cech. Sprawdza braki, duplikaty, typy danych, wykrywa wartości odstające (outliers), weryfikuje zakresy wartości i analizuje rozkłady. Oblicza ogólny **Quality Score** dla datasetu.
 - **Wyjście**: Raport `reports/02_validation_report.json`.
+
+### `06_data_export.py` - Export i Przygotowanie Danych do ML
+
+### `06a_data_validator.py` - Dodatkowa Walidacja i Analiza Danych
+
+- **Funkcja**: Przeprowadza pogłębioną analizę danych po inżynierii cech. Generuje histogramy dla istotnych cech numerycznych, analizuje i wizualizuje korelacje między cechami (histogram rozkładu korelacji, heatmapa), identyfikuje i raportuje istotne korelacje oraz wykrywa i wizualizuje wartości odstające (outliers) za pomocą metody IQR.
+- **Wyjście**: Raporty `reports/outlier_report_iqr.csv`, `reports/significant_correlations_report.csv` oraz wykresy w `reports/plots/` (np. `correlation_distribution_histogram.png`, `correlation_heatmap.png`, `histogram_*.png`, `boxplot_outliers_*.png`).
 
 ### `06_data_export.py` - Export i Przygotowanie Danych do ML
 
@@ -225,12 +240,22 @@ Po pomyślnym wykonaniu pełnego pipeline'u, w katalogach `data/`, `models/` i `
 - `03_export_summary.json`: Podsumowanie eksportu danych.
 - `04_model_training_report.json`: Raport z treningu modeli, zawierający metryki i ważność cech.
 - `05_evaluation_metrics.json`: Szczegółowe metryki ewaluacji najlepszego modelu (np. classification report).
+- `outlier_report_iqr.csv`: Raport z wykrytymi outlierami w danych.
+- `significant_correlations_report.csv`: Raport z parami cech o istotnych korelacjach.
+
+### `reports/plots/`
 
 ### `reports/figures/`
 - `confusion_matrix.png`: Wizualizacja macierzy pomyłek modelu.
 - `roc_pr_curves.png`: Wykresy krzywych ROC i Precision-Recall.
 - `feature_importance.png`: Wykres ważności cech dla najlepszego modelu.
 - `shap_summary.png`: Wykres podsumowujący analizę SHAP (jeśli biblioteka SHAP jest zainstalowana).
+
+### `reports/plots/`
+- `correlation_distribution_histogram.png`: Histogram rozkładu wartości korelacji.
+- `correlation_heatmap.png`: Heatmapa macierzy korelacji.
+- `histogram_*.png`: Histogramy rozkładów dla poszczególnych cech numerycznych.
+- `boxplot_outliers_*.png`: Boxploty wizualizujące outliery dla poszczególnych cech.
 
 ### `reports/predictions/`
 - `Raport_*.md`: Raporty generowane przez narzędzie `09_predict_cli.py`.
@@ -375,4 +400,3 @@ grep ERROR pipeline_execution.log
 | **Duplikaty AppID** | 0 |
 | **Python** | 3.8+ |
 | **Ostatnia aktualizacja zbioru danych** | 2023-11-20 |
-

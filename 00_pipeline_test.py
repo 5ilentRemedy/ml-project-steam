@@ -29,6 +29,7 @@ class FullMLPipeline:
             ('03_data_cleaning.py', 'Czyszczenie danych'),
             ('04_feature_engineering.py', 'Inzynieria cech'),
             ('05_data_validation.py', 'Walidacja danych'),
+            ('06a_data_validator.py', 'Walidacja i analiza danych'),
             ('06_data_export.py', 'Export i przygotowanie'),
             ('07_model_training.py', 'Trenowanie modeli ML'),
             ('08_model_evaluation.py', 'Ewaluacja i wizualizacja')
@@ -101,6 +102,10 @@ class FullMLPipeline:
             'data/processed/games_final.csv': 'Finalne dane (CSV)',
             'data/processed/games_train.csv': 'Zbior treningowy',
             'data/processed/games_test.csv': 'Zbior testowy',
+            'reports/outlier_report_iqr.csv': 'Raport outlierow',
+            'reports/significant_correlations_report.csv': 'Raport istotnych korelacji',
+            'reports/plots/correlation_distribution_histogram.png': 'Wykres: Histogram korelacji',
+            'reports/plots/correlation_heatmap.png': 'Wykres: Heatmapa korelacji',
             'reports/02_validation_report.json': 'Raport walidacji danych',
             'reports/03_export_summary.json': 'Raport exportu',
             'models/best_model.joblib': 'Zapisany model ML',
@@ -157,6 +162,7 @@ class FullMLPipeline:
         logger.info("\nKatalogi wyjsciowe:")
         logger.info("- Dane: data/processed/")
         logger.info("- Modele: models/")
+        logger.info("- Wykresy walidacji: reports/plots/")
         logger.info("- Raporty i wykresy: reports/figures/")
         logger.info("\n" + "=" * 80 + "\n")
     
