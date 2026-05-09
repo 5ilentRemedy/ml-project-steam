@@ -24,6 +24,9 @@ except ImportError:
 class DataExporter:
     def __init__(self):
         self.df = None
+        self.train_df = None
+        self.val_df = None
+        self.test_df = None
         self.export_info = {}
     
     def load_data(self):
@@ -68,28 +71,40 @@ class DataExporter:
         self.export_info['parquet'] = str(output_file)
         return self.df
     
-    def create_train_test_split(self, test_size=0.2, random_state=42):
-        logger.info(f"Tworzenie train/test splitu (test_size={test_size})...")
+    def create_train_val_test_split(self, train_ratio=0.7, val_ratio=0.15, test_ratio=0.15, random_state=42):
+        logger.info(f"Tworzenie train/val/test splitu (train={train_ratio*100:.0f}%/val={val_ratio*100:.0f}%/test={test_ratio*100:.0f}%)...")
         output_dir = Path(__file__).parent / "data" / "processed"
         output_dir.mkdir(parents=True, exist_ok=True)
-        np.random.seed(random_state)
-        test_indices = np.random.choice(len(self.df), size=int(len(self.df) * test_size), replace=False)
-        train_df = self.df.drop(test_indices)
-        test_df = self.df.iloc[test_indices]
+
+        df_shuffled = self.df.sample(frac=1, random_state=random_state).reset_index(drop=True)
+
+        total_len = len(df_shuffled)
+        train_end = int(total_len * train_ratio)
+        val_end = train_end + int(total_len * val_ratio)
+
+        self.train_df = df_shuffled.iloc[:train_end]
+        self.val_df = df_shuffled.iloc[train_end:val_end]
+        self.test_df = df_shuffled.iloc[val_end:]
+
         train_file = output_dir / "games_train.csv"
+        val_file = output_dir / "games_val.csv"
         test_file = output_dir / "games_test.csv"
-        train_df.to_csv(train_file, index=False)
-        test_df.to_csv(test_file, index=False)
-        logger.info(f"[OK] Train set: {len(train_df)} wierszy ({len(train_df)/len(self.df)*100:.1f}%)")
-        logger.info(f"[OK] Test set: {len(test_df)} wierszy ({len(test_df)/len(self.df)*100:.1f}%)")
-        self.export_info['train_test_split'] = {
+        self.train_df.to_csv(train_file, index=False)
+        self.val_df.to_csv(val_file, index=False)
+        self.test_df.to_csv(test_file, index=False)
+        logger.info(f"[OK] Train set: {len(self.train_df)} wierszy ({len(self.train_df)/total_len*100:.1f}%)")
+        logger.info(f"[OK] Validation set: {len(self.val_df)} wierszy ({len(self.val_df)/total_len*100:.1f}%)")
+        logger.info(f"[OK] Test set: {len(self.test_df)} wierszy ({len(self.test_df)/total_len*100:.1f}%)")
+        self.export_info['train_val_test_split'] = {
             'train_file': str(train_file),
+            'val_file': str(val_file),
             'test_file': str(test_file),
-            'train_size': len(train_df),
-            'test_size': len(test_df),
-            'split_ratio': float(test_size)
+            'train_size': len(self.train_df),
+            'val_size': len(self.val_df),
+            'test_size': len(self.test_df),
+            'split_ratios': {'train': train_ratio, 'val': val_ratio, 'test': test_ratio}
         }
-        return train_df, test_df
+        return self.train_df, self.val_df, self.test_df
     
     def create_feature_groups(self):
         logger.info("Tworzenie grup cech dla 15 kolumn...")
@@ -151,12 +166,13 @@ class DataExporter:
             'total_records': len(self.df),
             'total_features': len(self.df.columns),
             'data_shape': list(self.df.shape),
-            'feature_groups': self.export_info.get('feature_groups', {}),
-            'train_test_split': self.export_info.get('train_test_split', {}),
+            'feature_groups': self.export_info.get('feature_groups', {}), # This will be populated by create_feature_groups
+            'train_val_test_split': self.export_info.get('train_val_test_split', {}), # This will be populated by create_train_val_test_split
             'files': {
                 'main_data': 'games_final.csv',
                 'parquet_data': 'games_final.parquet',
                 'train_data': 'games_train.csv',
+                'val_data': 'games_val.csv',
                 'test_data': 'games_test.csv',
                 'columns_doc': 'columns_documentation.csv',
                 'manifest': 'dataset_manifest.json'
@@ -190,8 +206,9 @@ Przetworzony dataset gier ze Steam przygotowany do modelowania ML.
 ## Zawartosc
 - games_final.csv - Ostateczne dane w formacie CSV
 - games_final.parquet - Ostateczne dane w formacie Parquet (binarny)
-- games_train.csv - Zbior treningowy (80%)
-- games_test.csv - Zbior testowy (20%)
+- games_train.csv - Zbior treningowy (70%)
+- games_val.csv - Zbior walidacyjny (15%)
+- games_test.csv - Zbior testowy (15%)
 - columns_documentation.csv - Dokumentacja wszystkich kolumn
 - dataset_manifest.json - Manifest i metadata datasetu
 
@@ -212,6 +229,7 @@ df = pd.read_csv('games_final.csv')
 df = pd.read_parquet('games_final.parquet')
 
 # Train/Test split
+val_df = pd.read_csv('games_val.csv')
 train_df = pd.read_csv('games_train.csv')
 test_df = pd.read_csv('games_test.csv')
 ```

@@ -42,7 +42,7 @@ class FullMLPipeline:
     def __init__(self):
         self.project_dir = Path(__file__).parent
         
-        # ZAKTUALIZOWANA LISTA SKRYPTÓW (Dodano krok 6 i 7)
+        
         self.scripts = [
             ('02_data_exploration.py', 'Eksploracja danych'),
             ('03_data_cleaning.py', 'Czyszczenie danych'),
@@ -110,7 +110,7 @@ class FullMLPipeline:
         logger.info("WERYFIKACJA PLIKÓW WYJŚCIOWYCH")
         logger.info("=" * 80)
         
-        # ZAKTUALIZOWANA LISTA OCZEKIWANYCH PLIKÓW (Dodano modele i raporty z ML)
+        
         expected_files = {
             'data/games_cleaned.csv': 'Oczyszczone dane',
             'data/games_engineered.csv': 'Dane z cechami',
