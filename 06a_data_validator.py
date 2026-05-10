@@ -108,6 +108,74 @@ def create_correlation_matrix(df, numeric_columns):
     plt.show()
     print("Macierz korelacji zapisana jako: reports/figures/correlation_matrix.png")
 
+
+def get_top_correlations(df, numeric_columns, top_n=10):
+    """Znajduje topowe pary korelacji między zmiennymi numerycznymi."""
+    available_numeric = [col for col in numeric_columns if col in df.columns]
+    corr_matrix = df[available_numeric].corr()
+    corr_pairs = (
+        corr_matrix.where(np.triu(np.ones(corr_matrix.shape), k=1).astype(bool))
+        .stack()
+        .reset_index()
+        .rename(columns={'level_0': 'feature_1', 'level_1': 'feature_2', 0: 'corr'})
+    )
+    corr_pairs['abs_corr'] = corr_pairs['corr'].abs()
+    return corr_pairs.sort_values('abs_corr', ascending=False).head(top_n)
+
+
+def create_top_correlations_barplot(df, numeric_columns):
+    """Tworzy słupkowy wykres najsilniejszych zależności między parami zmiennych."""
+    print("\nGenerowanie wykresu słupkowego najsilniejszych zależności...")
+    top_corr = get_top_correlations(df, numeric_columns, top_n=10)
+
+    # Pytanie, na które odpowiada wykres: które pary cech mają najsilniejszą korelację?
+    if top_corr.empty:
+        print("Brak danych do wygenerowania wykresu najsilniejszych korelacji.")
+        return
+
+    top_corr['pair'] = top_corr['feature_1'] + ' – ' + top_corr['feature_2']
+    top_corr = top_corr.sort_values('abs_corr', ascending=True)
+
+    plt.figure(figsize=(12, 7))
+    sns.barplot(data=top_corr, x='abs_corr', y='pair', palette='vlag')
+    plt.title('Top 10 najsilniejszych korelacji między danymi numerycznymi', fontsize=16, fontweight='bold')
+    plt.xlabel('Bezwzględna wartość korelacji')
+    plt.ylabel('Para zmiennych')
+    plt.grid(axis='x', alpha=0.3)
+    plt.tight_layout()
+    plt.savefig('reports/figures/top_correlations_barplot.png', dpi=300, bbox_inches='tight')
+    plt.show()
+    print("Wykres słupkowy najsilniejszych zależności zapisany jako: reports/figures/top_correlations_barplot.png")
+
+
+def create_top_feature_heatmap(df, numeric_columns):
+    """Tworzy heatmapę dla najważniejszych zmiennych powiązanych ze sobą."""
+    print("\nGenerowanie heatmapy dla najważniejszych zmiennych...")
+    top_corr = get_top_correlations(df, numeric_columns, top_n=10)
+
+    # Pytanie, na które odpowiada wykres: jak powiązane są między sobą najważniejsze cechy?
+    if top_corr.empty:
+        print("Brak danych do wygenerowania heatmapy najważniejszych cech.")
+        return
+
+    pair_features = list(top_corr['feature_1']) + list(top_corr['feature_2'])
+    feature_counts = pd.Series(pair_features).value_counts()
+    selected_features = feature_counts.head(6).index.tolist()
+
+    corr_matrix = df[selected_features].corr()
+
+    plt.figure(figsize=(10, 8))
+    sns.heatmap(corr_matrix, annot=True, cmap='coolwarm', vmin=-1, vmax=1,
+                center=0, linewidths=0.5, cbar_kws={"shrink": 0.8})
+    plt.title('Heatmapa korelacji dla najważniejszych cech', fontsize=16, fontweight='bold')
+    plt.xticks(rotation=45, ha='right')
+    plt.yticks(rotation=0)
+    plt.tight_layout()
+    plt.savefig('reports/figures/top_features_heatmap.png', dpi=300, bbox_inches='tight')
+    plt.show()
+    print("Heatmapa najważniejszych cech zapisana jako: reports/figures/top_features_heatmap.png")
+
+
 def create_scatter_plots(df):
     """Tworzy wykresy punktowe dla kluczowych zależności"""
     print("\nGenerowanie wykresów punktowych...")
@@ -198,7 +266,9 @@ def detect_outliers(df, column, method='iqr'):
     if column not in df.columns:
         return []
 
-    data = df[column].dropna()
+    data = pd.to_numeric(df[column], errors='coerce').astype(float).dropna()
+    if len(data) == 0:
+        return []
 
     if method == 'iqr':
         Q1 = data.quantile(0.25)
@@ -251,6 +321,8 @@ def main():
         # Generuj wizualizacje
         create_histograms(df_clean, numeric_columns)
         create_correlation_matrix(df_clean, numeric_columns)
+        create_top_correlations_barplot(df_clean, numeric_columns)
+        create_top_feature_heatmap(df_clean, numeric_columns)
         create_scatter_plots(df_clean)
         create_boxplots(df_clean, numeric_columns)
 
