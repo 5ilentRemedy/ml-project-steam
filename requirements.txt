@@ -10,3 +10,4 @@ shap
 lightgbm
 xgboost
 packaging
+pyarrow

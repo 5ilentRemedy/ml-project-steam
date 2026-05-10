@@ -128,7 +128,7 @@ class ModelTrainer:
                 class_weight='balanced' # Dostosowanie wag klas
             )
             logger.info("  Dodano model LightGBM")
-        # 4. XGBoost (jeśli biblioteka jest zainstalowana i LightGBM nie)
+        # 4. XGBoost (jeśli biblioteka jest zainstalowana )
         elif HAS_XGB:
             self.models['XGBoost'] = xgb.XGBClassifier(
                 n_estimators=100, # Liczba estymatorów (drzew)

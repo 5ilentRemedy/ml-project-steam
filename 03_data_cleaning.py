@@ -91,6 +91,7 @@ class DataCleaner:
     # Metoda do czyszczenia danych dotyczących platform
     def clean_platforms(self):
         logger.info("Czyszczenie platform...")
+        # TODO #1 pozostawienie platform w osobnych kolumnach i oznaczenie ich jako True/False
         # Konwersja kolumn platform na typ boolean (True/False) w zależności od istnienia wartości
         for platform in ['Windows', 'Mac', 'Linux']:
             self.df[platform] = self.df[platform].notna().astype(bool)

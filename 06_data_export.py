@@ -142,6 +142,7 @@ class DataExporter:
             'content': ['Log_owners', 'Has_achievements', 'Genre_count'],
             'price': ['Price', 'Is_free'],
             'metadata': ['Genres']
+            #podział na gatunki i który jest najpopularniejszy
         }
         self.export_info['feature_groups'] = feature_groups # Zapisanie grup cech do informacji o eksporcie
         logger.info(f"OK Zdefiniowano {len(feature_groups)} grup cech")
