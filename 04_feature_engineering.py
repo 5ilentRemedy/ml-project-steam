@@ -93,8 +93,12 @@ class FeatureEngineer:
             # Wypełnienie brakujących kategorii 'Unknown'
             self.df['Metacritic_category'] = self.df['Metacritic_category'].fillna('Unknown')
             
-            # Definicja sukcesu gry: minimum 30 recenzji i co najmniej 80% pozytywnych
-            self.df['Is_highly_rated'] = ((self.df['Review_ratio'] >= 0.80) & (self.df['Total_reviews'] >= 30)).astype(int)
+            # Definicja sukcesu gry: 
+            # Kryterium 1: Minimum 20 recenzji i co najmniej 70% pozytywnych
+            # Kryterium 2: Metacritic score >= 75
+            criterion1 = (self.df['Review_ratio'] >= 0.70) & (self.df['Total_reviews'] >= 20)
+            criterion2 = (self.df['Metacritic score'] >= 75)
+            self.df['Is_highly_rated'] = (criterion1 | criterion2).astype(int)
             
             # Normalizacja oceny użytkowników do zakresu 0-1
             self.df['User_score_normalized'] = self.df['User score'] / 10.0
