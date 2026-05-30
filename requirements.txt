@@ -11,7 +11,6 @@ lightgbm
 xgboost
 packaging
 pyarrow
-tensorflow
-keras
 scipy
 imbalanced-learn
+
