@@ -1,15 +1,8 @@
 """
-00_full_ml_pipeline.py
-Główny orchestrator pełnego pipleline'u Machine Learning
+00_pipeline_test.py
+Główny orchestrator pełnego pipeline'u Machine Learning
 
-Ten skrypt uruchamia wszystkie kroki w sekwencji:
-1. Eksploracja danych
-2. Czyszczenie danych
-3. Inżynieria cech
-4. Walidacja
-5. Export
-6. Trenowanie modeli ML
-7. Ewaluacja modeli i wizualizacja
+Dostosowany do obecnej struktury plików na dysku użytkownika.
 """
 
 import subprocess
@@ -37,20 +30,21 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 class FullMLPipeline:
-    """Orchestrator calego pipleline'u ML"""
+    """Orchestrator całego pipeline'u ML"""
     
     def __init__(self):
         self.project_dir = Path(__file__).parent
         
-        
+        # 🟢 Dopasowane nazwy skryptów dokładnie do struktury na Twoim dysku
         self.scripts = [
-            ('02_data_exploration.py', 'Eksploracja danych'),
-            ('03_data_cleaning.py', 'Czyszczenie danych'),
-            ('04_feature_engineering.py', 'Inżynieria cech'),
-            ('05_data_validation.py', 'Walidacja danych'),
-            ('06_data_export.py', 'Export i przygotowanie'),
-            ('07_model_training.py', 'Trenowanie modeli ML'),
-            ('08_model_evaluation.py', 'Ewaluacja i wizualizacja')
+            ('02_data_exploration.py', 'Eksploracja danych i analiza szumu'),
+            ('03_data_cleaning.py', 'Czyszczenie danych i etykietowanie sukcesu'),
+            ('04_feature_engineering.py', 'Inżynieria cech (transformacje i standaryzacja)'),
+            ('06_data_export.py', 'Eksport danych i podział na zbiory Train/Val/Test'),
+            ('07_model_training.py', 'Trenowanie wieloklasowych modeli ML'),
+            ('05_data_validation.py', 'Walidacja statystyczna danych jakościowych'),
+            ('06a_data_validator.py', 'Generowanie zaawansowanych wykresów dystrybucji rynkowej'),
+            ('08_model_evaluation.py', 'Ewaluacja końcowa klasyfikatorów i wykresy ROC/PR')
         ]
         self.results = {}
     
@@ -70,7 +64,6 @@ class FullMLPipeline:
         try:
             start_time = time.time()
             
-            # Uruchom skrypt
             result = subprocess.run(
                 [sys.executable, str(script_path)],
                 capture_output=False,
@@ -88,7 +81,7 @@ class FullMLPipeline:
                 }
                 return True
             else:
-                logger.error(f"[ERROR] {description} - BLĄD (kod: {result.returncode})")
+                logger.error(f"[ERROR] {description} - BŁĄD (kod wyjścia: {result.returncode})")
                 self.results[script_name] = {
                     'status': 'FAILED',
                     'time': elapsed_time
@@ -96,7 +89,7 @@ class FullMLPipeline:
                 return False
         
         except Exception as e:
-            logger.error(f"[ERROR] {description} - WYJĄTEK: {str(e)}")
+            logger.error(f"[ERROR] {description} - WYJĄTEK PROCESU: {str(e)}")
             self.results[script_name] = {
                 'status': 'ERROR',
                 'time': 0,
@@ -105,123 +98,107 @@ class FullMLPipeline:
             return False
     
     def verify_outputs(self):
-        """Weryfikuje czy wszystkie pliki wyjsciowe zostały utworzone"""
+        """Weryfikuje czy kluczowe pliki wyjściowe i raporty zostały poprawnie zapisane"""
         logger.info("\n" + "=" * 80)
-        logger.info("WERYFIKACJA PLIKÓW WYJŚCIOWYCH")
+        logger.info("WERYFIKACJA STRUKTURY PLIKÓW WYJŚCIOWYCH POTOKU")
         logger.info("=" * 80)
         
-        
         expected_files = {
-            'data/games_cleaned.csv': 'Oczyszczone dane',
-            'data/games_engineered.csv': 'Dane z cechami',
-            'data/processed/games_final.csv': 'Finalne dane (CSV)',
-            'data/processed/games_train.csv': 'Zbiór treningowy',
-            'data/processed/games_test.csv': 'Zbiór testowy',
-            'reports/02_validation_report.json': 'Raport walidacji danych',
-            'reports/03_export_summary.json': 'Raport exportu',
-            'models/best_model.joblib': 'Zapisany model ML',
-            'reports/04_model_training_report.json': 'Raport z treningu ML',
-            'reports/05_evaluation_metrics.json': 'Metryki ewaluacji ML',
-            'reports/figures/confusion_matrix.png': 'Wykres: Macierz pomyłek',
-            'reports/figures/roc_pr_curves.png': 'Wykres: Krzywe ROC i PR'
+            'data/games_cleaned.csv': 'Baza oczyszczona z targetem',
+            'data/games_engineered.csv': 'Zbiór po inżynierii cech',
+            'data/processed/games_final.csv': 'Ostateczny plik cech modeli',
+            'data/processed/games_train.csv': 'Zbiór treningowy (70%)',
+            'data/processed/games_test.csv': 'Zbiór testowy (15%)',
+            'reports/01_exploration_summary.json': 'Raport eksploracyjny',
+            'reports/02_validation_report.json': 'Raport walidacji statystycznej',
+            'reports/05_evaluation_metrics.json': 'Końcowe metryki ewaluacji ML',
+            'models/best_model.joblib': 'Zapisany najlepszy model ML',
+            'reports/figures/correlation_matrix.png': 'Wykres: Macierz korelacji',
+            'reports/figures/market_success_distribution.png': 'Wykres: Rozkład klas targetu',
+            'reports/figures/advanced_dependency_plots.png': 'Wykres: Panel geometrii cech',
+            'reports/figures/roc_pr_curves.png': 'Wykres: Wieloklasowe krzywe ROC/PR'
         }
         
         verification = {}
-        
         for file_path, description in expected_files.items():
             full_path = self.project_dir / file_path
             exists = full_path.exists()
             status = "[OK]" if exists else "[MISS]"
-            
-            logger.info(f"{status} {description:30} - {file_path}")
+            logger.info(f"{status} {description:50} - {file_path}")
             verification[file_path] = exists
         
         return all(verification.values())
     
-    def print_summary(self):
-        """Drukuje podsumowanie wykonania"""
+    def print_summary(self, all_success):
+        """Prezentuje finalne podsumowanie wykonania potoku"""
         logger.info("\n" + "=" * 80)
-        logger.info("PODSUMOWANIE PIPLELINE'U")
+        logger.info("ZBIORCZE PODSUMOWANIE PEŁNEGO PIPELINE'U ML")
         logger.info("=" * 80 + "\n")
         
         total_time = sum(r.get('time', 0) for r in self.results.values())
         
-        # Tabela wyników
-        logger.info(f"{'Skrypt':<30} {'Status':<10} {'Czas (s)':<10}")
-        logger.info("-" * 50)
+        logger.info(f"{'Nazwa skryptu potoku':<30} {'Status':<12} {'Czas wykonania':<10}")
+        logger.info("-" * 60)
         
-        for script, result in self.results.items():
+        for script, description in self.scripts:
+            result = self.results.get(script, {'status': 'NOT RUN', 'time': 0.0})
             status = result['status']
-            time_val = result.get('time', 0)
-            logger.info(f"{script:<30} {status:<10} {time_val:<10.1f}")
+            time_val = result['time']
+            logger.info(f"{script:<30} {status:<12} {time_val:<10.1f}s")
         
-        logger.info("-" * 50)
-        logger.info(f"{'RAZEM':<30} {'':<10} {total_time:<10.1f}s")
-        
-        # Status ogólny
-        all_success = all(r['status'] == 'SUCCESS' for r in self.results.values())
+        logger.info("-" * 60)
+        logger.info(f"{'SUMARYCZNY CZAS PROCESU':<30} {'':<12} {total_time:<10.1f}s")
         
         if all_success:
-            logger.info("\n[OK] PEŁNY PIPELINE ML ZAKOŃCZONY POMYŚLNIE")
+            logger.info("\n🎉 [SUCCESS] PEŁNY POTOK MACHINE LEARNING ZAKOŃCZONY SUKCESEM!")
+            logger.info("\nLokalizacja wyjściowych struktur projektowych:")
+            logger.info("  -> Dane treningowe i Parquet: data/processed/")
+            logger.info("  -> Pliki binarne modeli (.joblib): models/")
+            logger.info("  -> Raporty JSON oraz wykresy PNG: reports/ oraz reports/figures/")
         else:
-            failed_count = sum(1 for r in self.results.values() if r['status'] != 'SUCCESS')
-            logger.warning(f"\n[!] {failed_count} kroki nie powiodły się")
-        
-        logger.info("\nKatalogi wyjściowe:")
-        logger.info("- Dane: data/processed/")
-        logger.info("- Modele: models/")
-        logger.info("- Raporty i wykresy: reports/figures/")
-        logger.info("\n" + "=" * 80 + "\n")
+            logger.warning("\n❌ [FAILED] PIPELINE PRZERWANY Z POWODU BŁĘDU W JEDNYM Z KROKÓW.")
+        logger.info("=" * 80 + "\n")
     
     def run(self):
-        """Uruchamia cały pipleline"""
+        """Uruchamia sekwencyjnie cały potok"""
         logger.info("\n" + "=" * 80)
-        logger.info("STEAM GAMES - PEŁNY MACHINE LEARNING PIPELINE")
+        logger.info("STEAM GAMES - AUTOMATYCZNY MACHINE LEARNING PIPELINE")
         logger.info("=" * 80)
-        logger.info(f"Data: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        logger.info(f"Data startu: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         logger.info("=" * 80)
         
-        # Utworzenie wszystkich wymaganych katalogów
+        # Inicjalizacja katalogów projektowych
         (self.project_dir / "data" / "processed").mkdir(parents=True, exist_ok=True)
         (self.project_dir / "reports" / "figures").mkdir(parents=True, exist_ok=True)
         (self.project_dir / "models").mkdir(parents=True, exist_ok=True)
         
-        logger.info("\nUstawienia:")
-        logger.info(f"  Katalog projektu: {self.project_dir}")
-        logger.info(f"  Liczba kroków: {len(self.scripts)}")
+        logger.info("\n[INFO] Konfiguracja środowiska:")
+        logger.info(f"  Ścieżka projektu: {self.project_dir}")
+        logger.info(f"  Liczba kroków sekwencyjnych: {len(self.scripts)}")
         
-        # Uruchomienie wszystkich kroków
         all_success = True
         for script_name, description in self.scripts:
             success = self.run_script(script_name, description)
             if not success:
                 all_success = False
-                logger.warning(f"[!] Pipleline zatrzymany z powodu błędu w: {description}")
+                logger.warning(f"\n[!] Pipeline przerwany automatycznie na kroku: {description}")
                 break
         
-        # Weryfikacja plików wyjściowych
         if all_success:
-            all_files_exist = self.verify_outputs()
-            if not all_files_exist:
-                logger.warning("[!] Niektóre pliki wyjściowe nie zostały utworzone")
-                all_success = False
-        
-        # Podsumowanie
-        self.print_summary()
-        
+            self.verify_outputs()
+            
+        self.print_summary(all_success)
         return all_success
 
 def main():
-    """Główna funkcja"""
     try:
-        # Moduł sprawdzania zależności z requirements.txt
         def check_and_install_requirements():
             req_file = Path(__file__).parent / 'requirements.txt'
             if not req_file.exists():
-                logger.info('Brak requirements.txt — pomijam sprawdzanie zależności.')
+                logger.info('Brak requirements.txt — pomijam automatyczne sprawdzanie bibliotek.')
                 return
 
-            logger.info('Sprawdzam wymagane zależności z requirements.txt...')
+            logger.info('Weryfikacja wymaganych zależności pakietów z requirements.txt...')
             lines = [l.strip() for l in req_file.read_text(encoding='utf-8').splitlines()]
             pkg_lines = [l for l in lines if l and not l.startswith('#')]
 
@@ -230,8 +207,7 @@ def main():
 
             for line in pkg_lines:
                 m = re.match(r"^\s*([A-Za-z0-9_.\-]+)", line)
-                if not m:
-                    continue
+                if not m: continue
                 pkg_name = m.group(1)
 
                 mod_candidates = [pkg_name.replace('-', '_')]
@@ -254,10 +230,8 @@ def main():
                 try:
                     installed_version = metadata.version(pkg_name)
                 except metadata.PackageNotFoundError:
-                    try:
-                        installed_version = metadata.version(mod)
-                    except Exception:
-                        installed_version = None
+                    try: installed_version = metadata.version(mod)
+                    except Exception: installed_version = None
 
                 spec_match = re.search(r"([<>=!~].+)$", line)
                 if installed_version and spec_match:
@@ -267,41 +241,36 @@ def main():
                         ss = SpecifierSet(spec)
                         if not ss.contains(installed_version):
                             mismatch.append((pkg_name, installed_version, spec))
-                    except Exception:
-                        pass
+                    except Exception: pass
 
             if not missing and not mismatch:
-                logger.info('Wszystkie zależności wydają się być spełnione.')
+                logger.info('[OK] Wszystkie zależności środowiska Python są spełnione.')
                 return
 
-            if missing:
-                logger.warning(f'Brakuje pakietów: {missing}')
-            if mismatch:
-                logger.warning(f'Pakiety z niezgodną wersją: {mismatch}')
+            if missing: logger.warning(f'Wykryto brakujące pakiety systemowe: {missing}')
+            if mismatch: logger.warning(f'Wykryto pakiety o niezgodnych wersjach specyfikacji: {mismatch}')
 
-            resp = input('Zainstalować brakujące/niezgodne pakiety z requirements.txt? [y/N]: ').strip().lower()
+            resp = input('Zainstalować/zaktualizować pakiety automatycznie za pomocą menedżera pip? [y/N]: ').strip().lower()
             if resp != 'y':
-                logger.info('Pominięto instalację pakietów.')
+                logger.info('Pominięto instalację. Uruchamianie potoku na obecnych pakietach.')
                 return
 
             cmd = [sys.executable, '-m', 'pip', 'install', '-r', str(req_file)]
-            logger.info(f'Uruchamiam: {cmd}')
+            logger.info(f'Instalacja w toku. Uruchamiam proces: {cmd}')
             subprocess.check_call(cmd)
-            logger.info('Instalacja zakończona. Kontynuuję.')
+            logger.info('[OK] Instalacja zakończona powodzeniem.')
 
         check_and_install_requirements()
 
         pipeline = FullMLPipeline()
         success = pipeline.run()
-        
         sys.exit(0 if success else 1)
     
     except KeyboardInterrupt:
-        logger.warning("\n[!] Pipleline przerwany przez użytkownika")
+        logger.warning("\n[!] Pipeline przerwany ręcznie przez operatora.")
         sys.exit(1)
-    
     except Exception as e:
-        logger.error(f"[ERROR] Niespodziewany błąd: {str(e)}", exc_info=True)
+        logger.error(f"[ERROR] Niespodziewany błąd krytyczny jądra potoku: {str(e)}", exc_info=True)
         sys.exit(1)
 
 if __name__ == "__main__":
