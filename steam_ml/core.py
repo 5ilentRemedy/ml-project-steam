@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import math
+import shutil
 import re
 import time
 from dataclasses import dataclass
@@ -45,6 +46,7 @@ FIGURES_DIR = REPORTS_DIR / "figures"
 MODELS_DIR = ROOT / "models"
 RANDOM_STATE = 42
 TARGET = "Is_highly_rated"
+DEFAULT_KAGGLE_DATASET = "fronkongames/steam-games-dataset"
 
 RAW_COLUMNS = [
     "AppID",
@@ -142,6 +144,35 @@ def latest_raw_csv() -> Path:
     if not files:
         raise FileNotFoundError("Nie znaleziono surowego pliku data/games_YYYYMMDD_HHMMSS.csv")
     return files[0]
+
+
+def download_kaggle_dataset(dataset: str = DEFAULT_KAGGLE_DATASET) -> Path:
+    ensure_dirs()
+    try:
+        import kagglehub
+    except ImportError as exc:
+        raise RuntimeError("Brakuje biblioteki kagglehub. Uruchom: pip install -r requirements.txt") from exc
+
+    downloaded_dir = Path(kagglehub.dataset_download(dataset))
+    csv_files = sorted(downloaded_dir.rglob("*.csv"), key=lambda p: p.stat().st_size, reverse=True)
+    if not csv_files:
+        raise FileNotFoundError(f"Dataset {dataset} nie zawiera pliku CSV.")
+
+    source = csv_files[0]
+    output = DATA_DIR / f"games_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+    shutil.copy2(source, output)
+    save_json(
+        {
+            "timestamp": timestamp(),
+            "dataset": dataset,
+            "downloaded_directory": str(downloaded_dir),
+            "source_csv": str(source),
+            "output_csv": str(output),
+            "size_bytes": output.stat().st_size,
+        },
+        REPORTS_DIR / "01_data_collection_report.json",
+    )
+    return output
 
 
 def load_raw_data(path: Path | None = None) -> pd.DataFrame:
@@ -787,6 +818,10 @@ class AdvancedModelEvaluator:
 
 def run_full_pipeline(train_models: bool = True) -> None:
     ensure_dirs()
+    try:
+        latest_raw_csv()
+    except FileNotFoundError:
+        download_kaggle_dataset()
     run_exploration()
     DataCleaner().run()
     FeatureEngineer().run()

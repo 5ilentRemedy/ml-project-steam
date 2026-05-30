@@ -11,8 +11,16 @@ python -m pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-Surowy plik danych powinien lezec w `data/` jako `games_YYYYMMDD_HHMMSS.csv`.
-Aktualny pipeline automatycznie wybiera najnowszy taki plik.
+Pierwszy etap pobiera dataset przez `kagglehub` i zapisuje go jako
+`data/games_YYYYMMDD_HHMMSS.csv`. Domyslny dataset to
+`fronkongames/steam-games-dataset`.
+
+Mozesz wskazac inny dataset:
+
+```powershell
+$env:KAGGLE_DATASET="autor/nazwa-datasetu"
+python 01_data_collection.py
+```
 
 ## Uruchomienie
 
@@ -21,6 +29,8 @@ Pelny pipeline z trenowaniem i ewaluacja:
 ```powershell
 python 00_pipeline_test_v2.py
 ```
+
+Jesli nie ma lokalnego surowego CSV, pelny pipeline najpierw pobierze dane.
 
 Pipeline przygotowania danych bez trenowania modeli:
 

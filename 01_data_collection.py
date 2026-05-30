@@ -1,17 +1,17 @@
-from pathlib import Path
+import os
 
-from steam_ml.core import DATA_DIR, latest_raw_csv, run_step
+from steam_ml.core import DEFAULT_KAGGLE_DATASET, download_kaggle_dataset, run_step
 
 
 def main() -> dict[str, str]:
-    source = latest_raw_csv()
+    dataset = os.environ.get("KAGGLE_DATASET", DEFAULT_KAGGLE_DATASET)
+    source = download_kaggle_dataset(dataset)
     return {
-        "status": "local_raw_dataset_ready",
+        "status": "downloaded",
+        "dataset": dataset,
         "source": str(source),
-        "hint": f"Umiesc nowy plik CSV w {DATA_DIR} jako games_YYYYMMDD_HHMMSS.csv, aby pipeline uzyl go automatycznie.",
     }
 
 
 if __name__ == "__main__":
     run_step("01 data collection", main)
-
