@@ -200,6 +200,17 @@ def bool_to_int(series: pd.Series) -> pd.Series:
     return series.astype(str).str.lower().map({"true": 1, "false": 0, "1": 1, "0": 0}).fillna(0).astype(int)
 
 
+def platform_label(row: pd.Series) -> str:
+    platforms = []
+    if int(row.get("Has_windows", 0) or 0) == 1:
+        platforms.append("Windows")
+    if int(row.get("Has_mac", 0) or 0) == 1:
+        platforms.append("Mac")
+    if int(row.get("Has_linux", 0) or 0) == 1:
+        platforms.append("Linux")
+    return " + ".join(platforms) if platforms else "Unknown"
+
+
 class DataCleaner:
     def __init__(self, source: Path | None = None):
         self.source = source or latest_raw_csv()
@@ -490,6 +501,19 @@ def run_exploration(source: Path | None = None) -> dict[str, Any]:
 def comprehensive_analysis(input_path: Path = PROCESSED_DIR / "games_final.csv") -> dict[str, Any]:
     ensure_dirs()
     df = pd.read_csv(input_path, low_memory=False)
+    if "Platform_count" in df.columns:
+        engineered_path = DATA_DIR / "games_engineered.csv"
+        if engineered_path.exists() and "AppID" in df.columns:
+            platform_cols = ["AppID", "Has_windows", "Has_mac", "Has_linux"]
+            engineered_cols = pd.read_csv(engineered_path, nrows=0).columns
+            if all(column in engineered_cols for column in platform_cols):
+                platforms = pd.read_csv(engineered_path, usecols=platform_cols)
+                df = df.merge(platforms.drop_duplicates("AppID"), on="AppID", how="left")
+                df["Platform_label"] = df.apply(platform_label, axis=1)
+        if "Platform_label" not in df.columns:
+            df["Platform_label"] = df["Platform_count"].map(
+                {1: "1 platform", 2: "2 platforms", 3: "Windows + Mac + Linux"}
+            ).fillna("Unknown")
     numeric = df.select_dtypes(include=[np.number])
     corr = numeric.corr(numeric_only=True)
     strong = []
@@ -516,8 +540,15 @@ def comprehensive_analysis(input_path: Path = PROCESSED_DIR / "games_final.csv")
     features = [c for c in MODEL_FEATURES if c in df.columns][:9]
     fig, axes = plt.subplots(3, 3, figsize=(14, 10))
     for ax, column in zip(axes.ravel(), features):
-        sns.histplot(df[column], ax=ax, bins=40)
-        ax.set_title(column)
+        if column == "Platform_count" and "Platform_label" in df.columns:
+            order = df["Platform_label"].value_counts().index.tolist()
+            sns.countplot(data=df, y="Platform_label", order=order, ax=ax)
+            ax.set_xlabel("Games")
+            ax.set_ylabel("")
+            ax.set_title("Platforms")
+        else:
+            sns.histplot(df[column], ax=ax, bins=40)
+            ax.set_title(column)
     plt.tight_layout()
     plt.savefig(FIGURES_DIR / "distributions_features.png", dpi=150)
     plt.close()
