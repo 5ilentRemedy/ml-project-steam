@@ -22,6 +22,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import (
     accuracy_score,
+    average_precision_score,
     classification_report,
     confusion_matrix,
     f1_score,
@@ -47,6 +48,19 @@ MODELS_DIR = ROOT / "models"
 RANDOM_STATE = 42
 TARGET = "Is_highly_rated"
 DEFAULT_KAGGLE_DATASET = "fronkongames/steam-games-dataset"
+# Target mode: 'default' uses review and Metacritic signal;
+# 'metacritic_only' uses Metacritic_score only;
+# 'trend_playtime' uses recent playtime trend if enough data exists.
+TARGET_MODE = "trend_playtime"  # options: 'default', 'metacritic_only', 'trend_playtime'
+TARGET_FALLBACK_MODE = "default"
+TARGET_MINIMUM_POSITIVES = 250
+TARGET_MINIMUM_POSITIVE_RATIO = 0.005
+
+NUMERIC_SANITIZE_RE = re.compile(r"[^0-9\.,\-]+")
+CLEAN_QUOTES_RE = re.compile(r"^[\'\"]+|[\'\"]+$")
+SEPARATOR_RE = re.compile(r"\s*[,;]\s*")
+SPLIT_RE = re.compile(r"[,;]")
+NUMBER_RE = re.compile(r"\d[\d,]*")
 
 RAW_COLUMNS = [
     "AppID",
@@ -98,6 +112,7 @@ FINAL_COLUMNS = [
     "Release_year",
     "Days_since_release",
     "Platform_count",
+    "Is_multiplatform",
     "Price",
     "Is_free",
     "Total_reviews",
@@ -113,13 +128,15 @@ MODEL_FEATURES = [
     "Release_year",
     "Days_since_release",
     "Platform_count",
+    "Is_multiplatform",
     "Price",
     "Is_free",
-    "Total_reviews",
-    "Review_ratio",
+    # Removed review-derived features to avoid target leakage
+    # "Total_reviews",
+    # "Review_ratio",
     "Log_owners",
     "Has_achievements",
-    "Log_total_reviews",
+    # "Log_total_reviews",
     "Genre_count",
 ]
 
@@ -198,6 +215,7 @@ def load_raw_data(path: Path | None = None) -> pd.DataFrame:
 
 
 def normalize_column_names(df: pd.DataFrame) -> pd.DataFrame:
+    df = df.rename(columns=lambda name: str(name).strip())
     rename = {
         "Metacritic score": "Metacritic_score",
         "User score": "User_score",
@@ -219,30 +237,121 @@ def clean_text_value(value: Any) -> str | float:
     if pd.isna(value):
         return np.nan
     text = str(value).strip()
-    if not text or text in {"[]", "nan", "None"}:
+    if not text or text.lower() in {"[]", "nan", "none"}:
         return np.nan
-    return re.sub(r"\s+", " ", text)
+    if text.startswith("[") and text.endswith("]"):
+        text = text[1:-1]
+        text = text.replace('"', "").replace("'", "")
+    text = CLEAN_QUOTES_RE.sub("", text)
+    text = SEPARATOR_RE.sub(", ", text)
+    text = re.sub(r"\s+", " ", text)
+    return text.strip()
+
+
+def parse_numeric_value(value: Any, default: float = np.nan) -> float:
+    if pd.isna(value):
+        return default
+    text = str(value).strip()
+    if not text or text.lower() in {"nan", "none", "unknown"}:
+        return default
+    text = NUMERIC_SANITIZE_RE.sub("", text)
+    if not text:
+        return default
+    if "." in text and "," in text:
+        if text.rfind(",") > text.rfind("."):
+            text = text.replace(".", "").replace(",", ".")
+        else:
+            text = text.replace(",", "")
+    elif "," in text:
+        text = text.replace(",", ".") if text.count(",") == 1 else text.replace(",", "")
+    try:
+        return float(text)
+    except ValueError:
+        return default
 
 
 def split_count(value: Any) -> int:
-    if pd.isna(value) or str(value).strip() == "":
+    if pd.isna(value):
         return 0
-    return len([part for part in str(value).split(",") if part.strip()])
+    return len([part for part in SPLIT_RE.split(str(value)) if part.strip()])
 
 
 def parse_owner_midpoint(value: Any) -> float:
     if pd.isna(value):
         return 0.0
-    numbers = [int(x.replace(",", "")) for x in re.findall(r"\d[\d,]*", str(value))]
+    numbers = [int(num.replace(",", "")) for num in NUMBER_RE.findall(str(value))]
     if not numbers:
         return 0.0
-    if len(numbers) == 1:
-        return float(numbers[0])
-    return float(sum(numbers[:2]) / 2)
+    return float(numbers[0]) if len(numbers) == 1 else float(sum(numbers[:2]) / 2)
+
+
+def build_default_target(df: pd.DataFrame) -> pd.Series:
+    return (
+        ((df["Review_ratio"] >= 0.70) & (df["Total_reviews"] >= 20))
+        | (df["Metacritic_score"] >= 75)
+    ).astype(int)
+
+
+def build_metacritic_only_target(df: pd.DataFrame) -> pd.Series:
+    return (df["Metacritic_score"] >= 75).astype(int)
+
+
+def build_trend_playtime_target(df: pd.DataFrame) -> tuple[pd.Series, float]:
+    ratio = df["Average_playtime_two_weeks"] / (df["Average_playtime_forever"] + 1e-6)
+    df["Recent_playtime_ratio"] = ratio
+    eligible = df[(df["Average_playtime_two_weeks"] > 0) & (df["Average_playtime_forever"] > 0)]
+    cutoff = float(eligible["Recent_playtime_ratio"].quantile(0.90)) if len(eligible) else float(ratio.quantile(0.90))
+    target = ((ratio >= cutoff) & (ratio > 0)).astype(int)
+    return target, cutoff
+
+
+def resolve_duplicate_appid(df: pd.DataFrame) -> tuple[pd.DataFrame, int]:
+    if "AppID" not in df.columns:
+        return df, 0
+    temp = df.copy()
+    temp["Positive"] = pd.to_numeric(temp.get("Positive", 0), errors="coerce").fillna(0).astype(int)
+    temp["Negative"] = pd.to_numeric(temp.get("Negative", 0), errors="coerce").fillna(0).astype(int)
+    temp["Total_reviews"] = temp["Positive"] + temp["Negative"]
+    temp["Metacritic_score"] = pd.to_numeric(temp.get("Metacritic_score", np.nan), errors="coerce")
+    temp["User_score"] = pd.to_numeric(temp.get("User_score", np.nan), errors="coerce")
+    temp = temp.sort_values(
+        ["AppID", "Total_reviews", "Metacritic_score", "User_score"],
+        ascending=[True, False, False, False],
+    )
+    before = len(temp)
+    temp = temp.drop_duplicates(subset=["AppID"], keep="first").drop(columns=["Total_reviews"])
+    return temp, before - len(temp)
 
 
 def bool_to_int(series: pd.Series) -> pd.Series:
     return series.astype(str).str.lower().map({"true": 1, "false": 0, "1": 1, "0": 0}).fillna(0).astype(int)
+
+
+def remove_extreme_outliers(df: pd.DataFrame, columns: list[str], iqr_multiplier: float = 1.5) -> tuple[pd.DataFrame, dict[str, Any]]:
+    """Remove rows with extreme values in specified numeric columns using IQR method.
+
+    Returns the filtered DataFrame and a dict with per-column removed counts and total removed rows.
+    """
+    counts: dict[str, int] = {}
+    keep_mask = pd.Series(True, index=df.index)
+    for col in columns:
+        if col not in df.columns:
+            continue
+        series = pd.to_numeric(df[col], errors="coerce")
+        q1 = series.quantile(0.25)
+        q3 = series.quantile(0.75)
+        iqr = q3 - q1
+        if iqr == 0 or np.isnan(iqr):
+            counts[col] = 0
+            continue
+        lower = q1 - iqr_multiplier * iqr
+        upper = q3 + iqr_multiplier * iqr
+        col_mask = series.between(lower, upper) | series.isna()
+        counts[col] = int((~col_mask).sum())
+        keep_mask &= col_mask
+    filtered = df[keep_mask].copy()
+    removed_total = int((~keep_mask).sum())
+    return filtered, {"per_column": counts, "rows_removed": removed_total}
 
 
 def platform_label(row: pd.Series) -> str:
@@ -271,18 +380,16 @@ class DataCleaner:
 
         if "AppID" in df.columns:
             duplicates = int(df.duplicated(subset=["AppID"]).sum())
-            df = df.drop_duplicates(subset=["AppID"], keep="first")
         else:
             duplicates = int(df.duplicated().sum())
-            df = df.drop_duplicates()
-        self.report["duplicates_removed"] = duplicates
+        self.report["duplicate_rows"] = duplicates
 
         required = [c for c in ["AppID", "Name", "Release_date"] if c in df.columns]
         before_required = len(df)
         df = df.dropna(subset=required)
         self.report["missing_required_removed"] = before_required - len(df)
 
-        df["Release_date"] = pd.to_datetime(df["Release_date"], errors="coerce", format="mixed")
+        df["Release_date"] = pd.to_datetime(df["Release_date"].astype(str).str.strip(), errors="coerce")
         before_date = len(df)
         today = pd.Timestamp.today().normalize()
         df = df[df["Release_date"].notna() & (df["Release_date"] <= today)]
@@ -292,8 +399,9 @@ class DataCleaner:
             "Price": 0,
             "Positive": 0,
             "Negative": 0,
-            "Metacritic_score": 0,
-            "User_score": 0,
+            "Estimated_owners": np.nan,
+            "Metacritic_score": np.nan,
+            "User_score": np.nan,
             "Achievements": 0,
             "Recommendations": 0,
             "Peak_CCU": 0,
@@ -302,11 +410,33 @@ class DataCleaner:
         }
         for column, default in numeric_defaults.items():
             if column in df.columns:
-                df[column] = pd.to_numeric(df[column], errors="coerce").fillna(default)
+                df[column] = df[column].map(lambda value: parse_numeric_value(value, default)).fillna(default)
+
+        if "AppID" in df.columns:
+            df, resolved_duplicates = resolve_duplicate_appid(df)
+            self.report["duplicates_removed"] = resolved_duplicates
+        else:
+            self.report["duplicates_removed"] = 0
 
         if "Price" in df.columns:
             df["Price"] = df["Price"].clip(lower=0).round(2)
             df = df[df["Price"] <= 1000]
+
+        # compute helper columns for outlier detection
+        df["Total_reviews"] = (
+            pd.to_numeric(df.get("Positive", 0), errors="coerce").fillna(0).astype(int)
+            + pd.to_numeric(df.get("Negative", 0), errors="coerce").fillna(0).astype(int)
+        )
+        df["Owner_midpoint"] = df.get("Estimated_owners", pd.Series(np.nan, index=df.index)).map(parse_owner_midpoint)
+        df["Days_since_release"] = (today - df["Release_date"]).dt.days.clip(lower=0).fillna(0).astype(int)
+
+        # stricter outlier removal on selected numeric columns
+        outlier_cols = [c for c in ["Price", "Total_reviews", "Days_since_release", "Estimated_owners"] if c in df.columns]
+        if outlier_cols:
+            df, outlier_info = remove_extreme_outliers(df, outlier_cols, iqr_multiplier=1.5)
+            self.report["outliers_removed"] = outlier_info
+        else:
+            self.report["outliers_removed"] = {"per_column": {}, "rows_removed": 0}
 
         for column in ["Positive", "Negative", "Metacritic_score", "User_score", "Achievements"]:
             if column in df.columns:
@@ -327,11 +457,17 @@ class DataCleaner:
 
         before_no_signal = len(df)
         total_reviews = df.get("Positive", 0) + df.get("Negative", 0)
-        useful_mask = (
-            (df.get("Genres", pd.Series(np.nan, index=df.index)).notna())
-            | (total_reviews > 0)
-            | (df.get("Metacritic_score", pd.Series(0, index=df.index)) > 0)
+        review_signal = total_reviews >= 5
+        score_signal = (
+            df.get("Metacritic_score", pd.Series(np.nan, index=df.index)).notna()
+            | df.get("User_score", pd.Series(np.nan, index=df.index)).notna()
         )
+        genres_available = (
+            df.get("Genres", pd.Series(np.nan, index=df.index)).notna()
+            if "Genres" in df.columns
+            else pd.Series(True, index=df.index)
+        )
+        useful_mask = genres_available & (review_signal | score_signal)
         df = df[useful_mask].copy()
         self.report["no_ml_signal_removed"] = before_no_signal - len(df)
 
@@ -354,31 +490,36 @@ class FeatureEngineer:
     def run(self) -> pd.DataFrame:
         ensure_dirs()
         log_message(f"Feature engineering: wczytywanie {self.input_path}")
-        df = pd.read_csv(self.input_path, low_memory=False)
+        df = normalize_column_names(pd.read_csv(self.input_path, low_memory=False))
         input_cols = len(df.columns)
-        df = normalize_column_names(df)
-        df["Release_date"] = pd.to_datetime(df["Release_date"], errors="coerce", format="mixed")
         today = pd.Timestamp.today().normalize()
+        df["Release_date"] = pd.to_datetime(df["Release_date"], errors="coerce")
 
-        df["Release_year"] = df["Release_date"].dt.year.astype("Int64").fillna(today.year).astype(int)
-        df["Release_month"] = df["Release_date"].dt.month.astype("Int64").fillna(1).astype(int)
-        df["Release_quarter"] = df["Release_date"].dt.quarter.astype("Int64").fillna(1).astype(int)
+        df["Release_year"] = df["Release_date"].dt.year.fillna(today.year).astype(int)
+        df["Release_month"] = df["Release_date"].dt.month.fillna(1).astype(int)
+        df["Release_quarter"] = df["Release_date"].dt.quarter.fillna(1).astype(int)
         df["Days_since_release"] = (today - df["Release_date"]).dt.days.clip(lower=0).fillna(0).astype(int)
         df["Is_recent"] = (df["Days_since_release"] <= 365).astype(int)
 
-        for column in ["Windows", "Mac", "Linux"]:
+        required_numeric = [
+            "Windows",
+            "Mac",
+            "Linux",
+            "Positive",
+            "Negative",
+            "Metacritic_score",
+            "User_score",
+            "Achievements",
+            "Price",
+            "Average_playtime_forever",
+            "Average_playtime_two_weeks",
+            "Median_playtime_forever",
+            "Median_playtime_two_weeks",
+        ]
+        for column in required_numeric:
             if column not in df.columns:
                 df[column] = 0
-        df["Has_windows"] = df["Windows"].astype(int)
-        df["Has_mac"] = df["Mac"].astype(int)
-        df["Has_linux"] = df["Linux"].astype(int)
-        df["Platform_count"] = df[["Has_windows", "Has_mac", "Has_linux"]].sum(axis=1).clip(lower=1)
-        df["Is_multiplatform"] = (df["Platform_count"] > 1).astype(int)
-
-        for column in ["Positive", "Negative", "Metacritic_score", "User_score", "Achievements", "Price"]:
-            if column not in df.columns:
-                df[column] = 0
-            df[column] = pd.to_numeric(df[column], errors="coerce").fillna(0)
+        df[required_numeric] = df[required_numeric].apply(pd.to_numeric, errors="coerce").fillna(0)
 
         df["Total_reviews"] = (df["Positive"] + df["Negative"]).astype(int)
         df["Review_ratio"] = np.where(df["Total_reviews"] > 0, df["Positive"] / df["Total_reviews"], 0.0)
@@ -395,10 +536,25 @@ class FeatureEngineer:
         df.loc[df["Metacritic_score"] <= 0, "Metacritic_category"] = "Missing"
         df["User_score_normalized"] = np.where(df["User_score"] > 10, df["User_score"] / 100, df["User_score"] / 10)
         df["User_score_normalized"] = df["User_score_normalized"].clip(0, 1)
-        df[TARGET] = (
-            ((df["Review_ratio"] >= 0.70) & (df["Total_reviews"] >= 20))
-            | (df["Metacritic_score"] >= 75)
-        ).astype(int)
+        target_mode = TARGET_MODE
+        if target_mode == "metacritic_only":
+            df[TARGET] = build_metacritic_only_target(df)
+        elif target_mode == "trend_playtime":
+            df[TARGET], cutoff = build_trend_playtime_target(df)
+            df["Recent_playtime_quantile_cutoff"] = cutoff
+            minimum_positive = max(TARGET_MINIMUM_POSITIVES, int(len(df) * TARGET_MINIMUM_POSITIVE_RATIO))
+            if int(df[TARGET].sum()) < minimum_positive:
+                log_message(
+                    f"Trend target ma za malo pozytywnych ({int(df[TARGET].sum())}), powrot do {TARGET_FALLBACK_MODE}."
+                )
+                target_mode = TARGET_FALLBACK_MODE
+                df[TARGET] = build_default_target(df)
+        else:
+            df[TARGET] = build_default_target(df)
+
+        df["Target_mode_used"] = target_mode
+        if df[TARGET].nunique() < 2:
+            log_message("Uwaga: wygenerowano tylko jedną klasę docelową. Sprawdź TARGET_MODE lub dane wejściowe.")
 
         df["Log_achievements"] = np.log1p(df["Achievements"].clip(lower=0))
         df["Has_achievements"] = (df["Achievements"] > 0).astype(int)
@@ -457,8 +613,12 @@ class DataExporter:
             final[column] = pd.to_numeric(final[column], errors="coerce").fillna(0)
         final = final.replace([np.inf, -np.inf], 0).dropna(subset=[TARGET])
 
-        train, temp = train_test_split(final, test_size=0.30, random_state=RANDOM_STATE, stratify=final[TARGET])
-        val, test = train_test_split(temp, test_size=0.50, random_state=RANDOM_STATE, stratify=temp[TARGET])
+        stratify_final = final[TARGET] if final[TARGET].nunique() > 1 else None
+        if stratify_final is None:
+            log_message("Uwaga: target zawiera tylko jedną klasę. Podzial bez stratify.")
+        train, temp = train_test_split(final, test_size=0.30, random_state=RANDOM_STATE, stratify=stratify_final)
+        stratify_temp = temp[TARGET] if temp[TARGET].nunique() > 1 else None
+        val, test = train_test_split(temp, test_size=0.50, random_state=RANDOM_STATE, stratify=stratify_temp)
         final.to_csv(PROCESSED_DIR / "games_final.csv", index=False)
         train.to_csv(PROCESSED_DIR / "games_train.csv", index=False)
         val.to_csv(PROCESSED_DIR / "games_val.csv", index=False)
@@ -686,6 +846,8 @@ class AdvancedModelTrainer:
         log_message(
             f"Dane treningowe: train={len(data.train):,}, val={len(data.val):,}, test={len(data.test):,}, cechy={len(MODEL_FEATURES)}".replace(",", " ")
         )
+        if data.y_train.nunique() < 2:
+            raise RuntimeError("Trening wymaga co najmniej dwoch klas docelowych. Sprawdz TARGET_MODE lub dane.")
         weights = compute_sample_weight("balanced", data.y_train)
         results: dict[str, Any] = {}
         trained: dict[str, Any] = {}
@@ -695,12 +857,12 @@ class AdvancedModelTrainer:
             log_message(f"Start treningu modelu: {name}")
             start = time.time()
             try:
-                if name in {"Neural Network", "XGBoost"}:
-                    model.fit(data.x_train, data.y_train)
-                else:
+                try:
                     model.fit(data.x_train, data.y_train, sample_weight=weights)
+                except TypeError:
+                    model.fit(data.x_train, data.y_train)
                 y_pred = model.predict(data.x_test)
-                y_proba = model.predict_proba(data.x_test)[:, 1]
+                y_proba = self._predict_proba(model, data.x_test)
                 results[name] = self.metrics(data.y_test, y_pred, y_proba, time.time() - start)
                 trained[name] = model
                 row = results[name]
@@ -738,13 +900,34 @@ class AdvancedModelTrainer:
         return report
 
     @staticmethod
+    def _predict_proba(model: Any, x_test: pd.DataFrame) -> np.ndarray:
+        if hasattr(model, "predict_proba"):
+            proba = model.predict_proba(x_test)
+            if proba.ndim == 1:
+                return proba
+            return proba[:, 1] if proba.shape[1] > 1 else proba[:, 0]
+        if hasattr(model, "decision_function"):
+            values = model.decision_function(x_test)
+            return values[:, 1] if getattr(values, "ndim", 1) > 1 else values
+        return np.zeros(len(x_test), dtype=float)
+
+    @staticmethod
     def metrics(y_true: pd.Series, y_pred: np.ndarray, y_proba: np.ndarray, elapsed: float) -> dict[str, float]:
+        try:
+            roc_auc = float(roc_auc_score(y_true, y_proba))
+        except Exception:
+            roc_auc = float("nan")
+        try:
+            average_precision = float(average_precision_score(y_true, y_proba))
+        except Exception:
+            average_precision = float("nan")
         return {
             "accuracy": float(accuracy_score(y_true, y_pred)),
             "precision": float(precision_score(y_true, y_pred, zero_division=0)),
             "recall": float(recall_score(y_true, y_pred, zero_division=0)),
             "f1_score": float(f1_score(y_true, y_pred, zero_division=0)),
-            "roc_auc": float(roc_auc_score(y_true, y_proba)),
+            "roc_auc": roc_auc,
+            "average_precision": average_precision,
             "training_time_seconds": float(elapsed),
         }
 
@@ -754,7 +937,7 @@ class AdvancedModelTrainer:
         if not rows:
             return
         df = pd.DataFrame(rows).sort_values("roc_auc", ascending=True)
-        metrics = ["accuracy", "precision", "recall", "f1_score", "roc_auc", "training_time_seconds"]
+        metrics = ["accuracy", "precision", "recall", "f1_score", "roc_auc", "average_precision", "training_time_seconds"]
         fig, axes = plt.subplots(2, 3, figsize=(16, 9))
         for ax, metric in zip(axes.ravel(), metrics):
             sns.barplot(data=df, x=metric, y="model", ax=ax)
@@ -785,7 +968,7 @@ class AdvancedModelEvaluator:
         y_true = test[TARGET]
         model = artifact["model"]
         y_pred = model.predict(x_test)
-        y_proba = model.predict_proba(x_test)[:, 1]
+        y_proba = AdvancedModelTrainer._predict_proba(model, x_test)
 
         cm = confusion_matrix(y_true, y_pred)
         self.plot_confusion_matrix(cm)
