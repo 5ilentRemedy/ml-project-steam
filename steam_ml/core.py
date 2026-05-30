@@ -133,6 +133,18 @@ def timestamp() -> str:
     return datetime.now().replace(microsecond=0).isoformat()
 
 
+def log_message(message: str) -> None:
+    now = datetime.now().strftime("%H:%M:%S")
+    print(f"[{now}] {message}", flush=True)
+
+
+def format_seconds(seconds: float) -> str:
+    if seconds < 60:
+        return f"{seconds:.1f}s"
+    minutes, rest = divmod(seconds, 60)
+    return f"{int(minutes)}m {rest:.1f}s"
+
+
 def save_json(payload: dict[str, Any], path: Path) -> None:
     ensure_dirs()
     path.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
@@ -148,6 +160,7 @@ def latest_raw_csv() -> Path:
 
 def download_kaggle_dataset(dataset: str = DEFAULT_KAGGLE_DATASET) -> Path:
     ensure_dirs()
+    log_message(f"Pobieranie datasetu Kaggle: {dataset}")
     try:
         import kagglehub
     except ImportError as exc:
@@ -161,6 +174,7 @@ def download_kaggle_dataset(dataset: str = DEFAULT_KAGGLE_DATASET) -> Path:
     source = csv_files[0]
     output = DATA_DIR / f"games_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
     shutil.copy2(source, output)
+    log_message(f"Zapisano surowe dane: {output} ({output.stat().st_size / 1024 / 1024:.1f} MB)")
     save_json(
         {
             "timestamp": timestamp(),
@@ -249,9 +263,11 @@ class DataCleaner:
 
     def run(self) -> pd.DataFrame:
         ensure_dirs()
+        log_message(f"Wczytywanie danych surowych: {self.source}")
         df = normalize_column_names(load_raw_data(self.source))
         start_rows = len(df)
         self.report["input_shape"] = list(df.shape)
+        log_message(f"Dane surowe: {df.shape[0]:,} wierszy, {df.shape[1]} kolumn".replace(",", " "))
 
         if "AppID" in df.columns:
             duplicates = int(df.duplicated(subset=["AppID"]).sum())
@@ -324,6 +340,9 @@ class DataCleaner:
         self.report["missing_after_cleaning"] = df.isna().sum().loc[lambda s: s > 0].to_dict()
         df.to_csv(DATA_DIR / "games_cleaned.csv", index=False)
         save_json(self.report, REPORTS_DIR / "03_data_cleaning_report.json")
+        log_message(
+            f"Czyszczenie zakonczone: zostalo {len(df):,}, usunieto {start_rows - len(df):,} rekordow".replace(",", " ")
+        )
         return df
 
 
@@ -334,7 +353,9 @@ class FeatureEngineer:
 
     def run(self) -> pd.DataFrame:
         ensure_dirs()
+        log_message(f"Feature engineering: wczytywanie {self.input_path}")
         df = pd.read_csv(self.input_path, low_memory=False)
+        input_cols = len(df.columns)
         df = normalize_column_names(df)
         df["Release_date"] = pd.to_datetime(df["Release_date"], errors="coerce", format="mixed")
         today = pd.Timestamp.today().normalize()
@@ -413,6 +434,8 @@ class FeatureEngineer:
         self.report["target_distribution"] = df[TARGET].value_counts(dropna=False).to_dict()
         df.to_csv(DATA_DIR / "games_engineered.csv", index=False)
         save_json(self.report, REPORTS_DIR / "04_feature_engineering_report.json")
+        target_counts = df[TARGET].value_counts(normalize=True).mul(100).round(2).to_dict()
+        log_message(f"Feature engineering zakonczony: {input_cols} -> {len(df.columns)} kolumn; target %: {target_counts}")
         return df
 
 
@@ -422,6 +445,7 @@ class DataExporter:
 
     def run(self) -> pd.DataFrame:
         ensure_dirs()
+        log_message(f"Eksport danych ML: wczytywanie {self.input_path}")
         df = pd.read_csv(self.input_path, low_memory=False)
         for column in FINAL_COLUMNS:
             if column not in df.columns:
@@ -465,6 +489,7 @@ class DataExporter:
         }
         save_json(manifest, PROCESSED_DIR / "dataset_manifest.json")
         pd.DataFrame({"column_name": FINAL_COLUMNS}).to_csv(PROCESSED_DIR / "columns_documentation.csv", index=False)
+        log_message(f"Split gotowy: train={len(train):,}, val={len(val):,}, test={len(test):,}".replace(",", " "))
         return final
 
 
@@ -474,6 +499,7 @@ class DataValidator:
 
     def run(self) -> dict[str, Any]:
         ensure_dirs()
+        log_message(f"Walidacja danych: {self.input_path}")
         df = pd.read_csv(self.input_path, low_memory=False)
         numeric = df.select_dtypes(include=[np.number])
         outliers = []
@@ -500,11 +526,15 @@ class DataValidator:
             "target_distribution": df[TARGET].value_counts().to_dict() if TARGET in df.columns else {},
         }
         save_json(report, REPORTS_DIR / "02_validation_report.json")
+        log_message(
+            f"Walidacja zakonczona: missing kolumn={len(report['missing_values'])}, duplikaty={report['duplicates']}, outlier raport={len(outliers)} kolumn"
+        )
         return report
 
 
 def run_exploration(source: Path | None = None) -> dict[str, Any]:
     ensure_dirs()
+    log_message("Eksploracja danych surowych")
     df = load_raw_data(source)
     report = {
         "timestamp": timestamp(),
@@ -526,11 +556,13 @@ def run_exploration(source: Path | None = None) -> dict[str, Any]:
         plt.tight_layout()
         plt.savefig(FIGURES_DIR / "price_distribution.png", dpi=150)
         plt.close()
+    log_message(f"Eksploracja zakonczona: shape={report['shape']}, raport=reports/01_exploration_summary.json")
     return report
 
 
 def comprehensive_analysis(input_path: Path = PROCESSED_DIR / "games_final.csv") -> dict[str, Any]:
     ensure_dirs()
+    log_message(f"Analiza kompleksowa: {input_path}")
     df = pd.read_csv(input_path, low_memory=False)
     if "Platform_count" in df.columns:
         engineered_path = DATA_DIR / "games_engineered.csv"
@@ -595,6 +627,9 @@ def comprehensive_analysis(input_path: Path = PROCESSED_DIR / "games_final.csv")
         "strong_correlations_top": sorted(strong, key=lambda x: abs(x["correlation"]), reverse=True)[:25],
     }
     save_json(report, REPORTS_DIR / "comprehensive_analysis.json")
+    log_message(
+        f"Analiza kompleksowa zakonczona: target={report['target_percent']}, silne korelacje={report['strong_correlations_count']}"
+    )
     return report
 
 
@@ -646,11 +681,18 @@ class AdvancedModelTrainer:
 
     def run(self) -> dict[str, Any]:
         ensure_dirs()
+        log_message("Przygotowanie danych do treningu")
         data = self.prepare_data()
+        log_message(
+            f"Dane treningowe: train={len(data.train):,}, val={len(data.val):,}, test={len(data.test):,}, cechy={len(MODEL_FEATURES)}".replace(",", " ")
+        )
         weights = compute_sample_weight("balanced", data.y_train)
         results: dict[str, Any] = {}
         trained: dict[str, Any] = {}
-        for name, model in self.define_models().items():
+        models = self.define_models()
+        log_message(f"Modele do treningu: {', '.join(models.keys())}")
+        for name, model in models.items():
+            log_message(f"Start treningu modelu: {name}")
             start = time.time()
             try:
                 if name in {"Neural Network", "XGBoost"}:
@@ -661,8 +703,13 @@ class AdvancedModelTrainer:
                 y_proba = model.predict_proba(data.x_test)[:, 1]
                 results[name] = self.metrics(data.y_test, y_pred, y_proba, time.time() - start)
                 trained[name] = model
+                row = results[name]
+                log_message(
+                    f"{name}: ROC-AUC={row['roc_auc']:.4f}, F1={row['f1_score']:.4f}, ACC={row['accuracy']:.4f}, czas={format_seconds(row['training_time_seconds'])}"
+                )
             except Exception as exc:
                 results[name] = {"error": str(exc), "training_time_seconds": time.time() - start}
+                log_message(f"{name}: BLAD treningu: {exc}")
 
         scored = {name: row for name, row in results.items() if "roc_auc" in row}
         if not scored:
@@ -687,6 +734,7 @@ class AdvancedModelTrainer:
         }
         save_json(report, REPORTS_DIR / "07_model_training_advanced.json")
         self.plot_model_comparison(results)
+        log_message(f"Najlepszy model: {best_name} (ROC-AUC={scored[best_name]['roc_auc']:.4f})")
         return report
 
     @staticmethod
@@ -726,7 +774,9 @@ class AdvancedModelTrainer:
 class AdvancedModelEvaluator:
     def run(self) -> dict[str, Any]:
         ensure_dirs()
+        log_message("Ewaluacja najlepszego modelu")
         artifact = joblib.load(MODELS_DIR / "best_model.joblib")
+        log_message(f"Zaladowano model: {artifact['best_model_name']}")
         test = pd.read_csv(PROCESSED_DIR / "games_test.csv")
         x_test = pd.DataFrame(
             artifact["scaler"].transform(test[artifact["feature_names"]].fillna(0)),
@@ -751,6 +801,10 @@ class AdvancedModelEvaluator:
             "classification_report": classification_report(y_true, y_pred, output_dict=True, zero_division=0),
         }
         save_json(report, REPORTS_DIR / "08_model_evaluation_advanced.json")
+        metrics = report["metrics"]
+        log_message(
+            f"Ewaluacja zakonczona: ROC-AUC={metrics['roc_auc']:.4f}, F1={metrics['f1_score']:.4f}, confusion_matrix={report['confusion_matrix']}"
+        )
         return report
 
     @staticmethod
@@ -817,20 +871,80 @@ class AdvancedModelEvaluator:
 
 
 def run_full_pipeline(train_models: bool = True) -> None:
+    pipeline_start = time.time()
     ensure_dirs()
-    try:
-        latest_raw_csv()
-    except FileNotFoundError:
-        download_kaggle_dataset()
-    run_exploration()
-    DataCleaner().run()
-    FeatureEngineer().run()
-    DataValidator().run()
-    DataExporter().run()
-    comprehensive_analysis()
+    log_message("=" * 78)
+    log_message("START PIPELINE ML-PROJECT-STEAM")
+    log_message(f"Tryb: {'pelny trening + ewaluacja' if train_models else 'przygotowanie danych bez treningu'}")
+    stages: list[tuple[str, Callable[[], Any]]] = [
+        ("Eksploracja danych surowych", run_exploration),
+        ("Czyszczenie danych", lambda: DataCleaner().run()),
+        ("Inzynieria cech", lambda: FeatureEngineer().run()),
+        ("Walidacja danych po feature engineeringu", lambda: DataValidator().run()),
+        ("Eksport i podzial train/val/test", lambda: DataExporter().run()),
+        ("Analiza kompleksowa gotowego datasetu", comprehensive_analysis),
+    ]
     if train_models:
-        AdvancedModelTrainer().run()
-        AdvancedModelEvaluator().run()
+        stages.extend(
+            [
+                ("Trening i porownanie modeli", lambda: AdvancedModelTrainer().run()),
+                ("Ewaluacja najlepszego modelu", lambda: AdvancedModelEvaluator().run()),
+            ]
+        )
+
+    try:
+        source = latest_raw_csv()
+        log_message(f"Znaleziono lokalny surowy CSV: {source}")
+    except FileNotFoundError:
+        stages.insert(0, ("Pobieranie danych z Kaggle", download_kaggle_dataset))
+
+    total = len(stages)
+    for index, (name, fn) in enumerate(stages, start=1):
+        run_pipeline_stage(index, total, name, fn)
+
+    log_message(f"KONIEC PIPELINE. Czas calkowity: {format_seconds(time.time() - pipeline_start)}")
+    log_message("=" * 78)
+
+
+def summarize_result(result: Any) -> str:
+    if isinstance(result, pd.DataFrame):
+        return f"DataFrame: {len(result):,} wierszy, {len(result.columns)} kolumn".replace(",", " ")
+    if not isinstance(result, dict):
+        return "OK"
+    if "output_shape" in result:
+        return f"output_shape={result['output_shape']}"
+    if "shape" in result:
+        extra = ""
+        if "target_percent" in result:
+            extra = f", target%={result['target_percent']}"
+        return f"shape={result['shape']}{extra}"
+    if "split" in result:
+        return f"split={result['split']}, klasy={result.get('class_distribution', {})}"
+    if "best_model" in result and "models_performance" in result:
+        best = result["best_model"]
+        metrics = result["models_performance"].get(best, {})
+        return f"best_model={best}, roc_auc={metrics.get('roc_auc')}, f1={metrics.get('f1_score')}"
+    if "metrics" in result:
+        metrics = result["metrics"]
+        return f"roc_auc={metrics.get('roc_auc')}, f1={metrics.get('f1_score')}, accuracy={metrics.get('accuracy')}"
+    if "source" in result:
+        return f"source={result['source']}"
+    return json.dumps(result, ensure_ascii=False)[:500]
+
+
+def run_pipeline_stage(index: int, total: int, name: str, fn: Callable[[], Any]) -> Any:
+    log_message("-" * 78)
+    log_message(f"[{index}/{total}] START: {name}")
+    start = time.time()
+    try:
+        result = fn()
+    except Exception as exc:
+        log_message(f"[{index}/{total}] BLAD: {name}: {exc}")
+        raise
+    elapsed = time.time() - start
+    log_message(f"[{index}/{total}] KONIEC: {name} ({format_seconds(elapsed)})")
+    log_message(f"[{index}/{total}] WYNIK: {summarize_result(result)}")
+    return result
 
 
 def predict_from_values(values: dict[str, float]) -> dict[str, Any]:
@@ -847,9 +961,7 @@ def predict_from_values(values: dict[str, float]) -> dict[str, Any]:
 
 
 def run_step(name: str, fn: Callable[[], Any]) -> None:
-    print(f"\n=== {name} ===")
-    result = fn()
+    result = run_pipeline_stage(1, 1, name, fn)
     if isinstance(result, dict):
-        print(json.dumps(result, indent=2, ensure_ascii=False)[:3000])
-    else:
-        print("OK")
+        log_message("Pelny wynik etapu:")
+        print(json.dumps(result, indent=2, ensure_ascii=False)[:3000], flush=True)
