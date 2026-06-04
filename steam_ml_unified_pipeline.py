@@ -1,34 +1,45 @@
 """
 ================================================================================
-STEAM GAMES ML PREDICTION PIPELINE - UNIFIED SCRIPT
+PIPELINE SKRYPT ML - PREDYKCJA SUKCESU GRY STEAM
 ================================================================================
 
-PROJECT INFORMATION:
-    Script Name:    Steam ML Unified Pipeline
-    Version:        1.0.0
-    Created:        2026-05-31
+INFORMACJA O PROJEKCIE:
+    Nazwa skryptu:   Pipeline ML Unified
+    Wersja:          1.0.0
+    Data utworzenia: 2026-05-31 [wersja finalna]
+
+CZŁONKOWIE ZESPOŁU:
+    [1] Maksymilian Lasek [ indeks 108822 ]
+    [2] Kornel Krzak [ indeks 76262 ]
+    [3] Patryk Napiórkowski [ indeks 112503 ]
+    [4] Piotr Rospondek [ indeks 92463 ]
+    [5] Mateusz Doniec [ indeks 107885 ]
+
+WSZYSTKIE KOMENDY:
     
-TEAM MEMBERS:
-    Lead Developer: [Your Name]
-    Data Scientist: [Name]
-    ML Engineer:    [Name]
+    Pełny pipeline (eksploracja + czyszczenie + inż. cech + trening):
+    $ python steam_ml_unified_pipeline.py full
     
-DESCRIPTION:
-    Comprehensive Machine Learning pipeline for predicting Steam game success
-    rates. Includes data collection, cleaning, feature engineering, model
-    training, and evaluation.
+    Przygotowanie danych bez treningu:
+    $ python steam_ml_unified_pipeline.py prepare
     
-USAGE:
-    python steam_ml_unified_pipeline.py [mode]
+    Interaktywny interfejs do predykcji:
+    $ python steam_ml_unified_pipeline.py predict
     
-    Modes:
-        full          - Complete pipeline with training (default)
-        prepare       - Data preparation only (no model training)
-        predict       - Interactive prediction CLI
-        exploration   - Data exploration only
-        cleaning      - Data cleaning only
-        training      - Model training only (requires prepared data)
-        evaluation    - Model evaluation only (requires trained model)
+    Eksploracja surowych danych:
+    $ python steam_ml_unified_pipeline.py exploration
+    
+    Czyszczenie i normalizacja danych:
+    $ python steam_ml_unified_pipeline.py cleaning
+    
+    Trening 5 algorytmów (wymaga prepared data!!):
+    $ python steam_ml_unified_pipeline.py training
+    
+    Ewaluacja najlepszego modelu na zbiorze testowym:
+    $ python steam_ml_unified_pipeline.py evaluation
+    
+    Domyśłnie uruchamia się tryb pełny:
+    $ python steam_ml_unified_pipeline.py
 
 ================================================================================
 """
@@ -94,7 +105,7 @@ TARGET_FALLBACK_MODE = "default"
 TARGET_MINIMUM_POSITIVES = 250
 TARGET_MINIMUM_POSITIVE_RATIO = 0.005
 
-# Regex patterns
+
 NUMERIC_SANITIZE_RE = re.compile(r"[^0-9\.,\-]+")
 CLEAN_QUOTES_RE = re.compile(r"^[\'\"]+|[\'\"]+$")
 SEPARATOR_RE = re.compile(r"\s*[,;]\s*")
@@ -114,8 +125,9 @@ RAW_COLUMNS = [
 
 FINAL_COLUMNS = [
     "AppID", "Name", "Genres", "Release_year", "Days_since_release", "Platform_count",
-    "Is_multiplatform", "Price", "Is_free", "Total_reviews", "Review_ratio", TARGET,
-    "Log_owners", "Has_achievements", "Log_total_reviews", "Genre_count",
+    "Is_multiplatform", "Has_windows", "Has_mac", "Has_linux", "Price", "Is_free", 
+    "Total_reviews", "Review_ratio", TARGET, "Log_owners", "Has_achievements", 
+    "Log_total_reviews", "Genre_count",
 ]
 
 MODEL_FEATURES = [
@@ -539,6 +551,15 @@ class FeatureEngineer:
                 df[column] = 0
         df[required_numeric] = df[required_numeric].apply(pd.to_numeric, errors="coerce").fillna(0)
 
+        # Tworzenie kolumn binarnych dla platform
+        df["Has_windows"] = (df["Windows"] > 0).astype(int)
+        df["Has_mac"] = (df["Mac"] > 0).astype(int)
+        df["Has_linux"] = (df["Linux"] > 0).astype(int)
+        
+        # Policzanie dostępnych platform
+        df["Platform_count"] = df["Has_windows"] + df["Has_mac"] + df["Has_linux"]
+        df["Is_multiplatform"] = (df["Platform_count"] > 1).astype(int)
+
         df["Total_reviews"] = (df["Positive"] + df["Negative"]).astype(int)
         df["Review_ratio"] = np.where(df["Total_reviews"] > 0, df["Positive"] / df["Total_reviews"], 0.0)
         review_q75 = float(df["Total_reviews"].quantile(0.75))
@@ -755,19 +776,19 @@ def comprehensive_analysis(input_path: Path = PROCESSED_DIR / "games_final.csv")
     ensure_dirs()
     log_message(f"Analiza kompleksowa: {input_path}")
     df = pd.read_csv(input_path, low_memory=False)
-    if "Platform_count" in df.columns:
+    
+
+    if "Has_windows" not in df.columns or "Has_mac" not in df.columns or "Has_linux" not in df.columns:
         engineered_path = DATA_DIR / "games_engineered.csv"
         if engineered_path.exists() and "AppID" in df.columns:
-            platform_cols = ["AppID", "Has_windows", "Has_mac", "Has_linux"]
-            engineered_cols = pd.read_csv(engineered_path, nrows=0).columns
-            if all(column in engineered_cols for column in platform_cols):
-                platforms = pd.read_csv(engineered_path, usecols=platform_cols)
-                df = df.merge(platforms.drop_duplicates("AppID"), on="AppID", how="left")
-                df["Platform_label"] = df.apply(platform_label, axis=1)
-        if "Platform_label" not in df.columns:
-            df["Platform_label"] = df["Platform_count"].map(
-                {1: "1 platform", 2: "2 platforms", 3: "Windows + Mac + Linux"}
-            ).fillna("Unknown")
+            try:
+                platform_cols = ["AppID", "Has_windows", "Has_mac", "Has_linux"]
+                engineered = pd.read_csv(engineered_path, usecols=platform_cols, low_memory=False)
+                df = df.merge(engineered.drop_duplicates("AppID"), on="AppID", how="left")
+                log_message("Kolumny platform załadowane z games_engineered.csv")
+            except Exception as e:
+                log_message(f"Nie udało się załadować kolumn platform: {e}")
+    
     numeric = df.select_dtypes(include=[np.number])
     corr = numeric.corr(numeric_only=True)
     strong = []
@@ -794,12 +815,33 @@ def comprehensive_analysis(input_path: Path = PROCESSED_DIR / "games_final.csv")
     features = [c for c in MODEL_FEATURES if c in df.columns][:9]
     fig, axes = plt.subplots(3, 3, figsize=(14, 10))
     for ax, column in zip(axes.ravel(), features):
-        if column == "Platform_count" and "Platform_label" in df.columns:
-            order = df["Platform_label"].value_counts().index.tolist()
-            sns.countplot(data=df, y="Platform_label", order=order, ax=ax)
-            ax.set_xlabel("Games")
-            ax.set_ylabel("")
-            ax.set_title("Platforms")
+        if column == "Platform_count":
+            
+            platforms_data = []
+            
+            if "Has_windows" in df.columns:
+                windows_count = int((df["Has_windows"] == 1).sum())
+                platforms_data.append({"Platform": "Windows", "Games": windows_count})
+            
+            if "Has_mac" in df.columns:
+                mac_count = int((df["Has_mac"] == 1).sum())
+                platforms_data.append({"Platform": "Mac", "Games": mac_count})
+            
+            if "Has_linux" in df.columns:
+                linux_count = int((df["Has_linux"] == 1).sum())
+                platforms_data.append({"Platform": "Linux", "Games": linux_count})
+            
+            if platforms_data and sum(p["Games"] for p in platforms_data) > 0:
+                platforms_df = pd.DataFrame(platforms_data).sort_values("Games", ascending=True)
+                sns.barplot(data=platforms_df, x="Games", y="Platform", orient="h", ax=ax, palette="viridis")
+                ax.set_xlabel("Liczba gier")
+                ax.set_ylabel("")
+                ax.set_title("Dostępność na platformach")
+            else:
+                ax.text(0.5, 0.5, "Brak danych\no platformach", ha="center", va="center", fontsize=10)
+                ax.set_title("Dostępność na platformach")
+                ax.set_xticks([])
+                ax.set_yticks([])
         else:
             sns.histplot(df[column], ax=ax, bins=40)
             ax.set_title(column)
@@ -859,7 +901,7 @@ class AdvancedModelTrainer:
         return PreparedData(train, val, test, x_train, x_val, x_test, train[TARGET], val[TARGET], test[TARGET], scaler)
 
     def define_models(self) -> dict[str, Any]:
-        """Define ML models to train."""
+        """Zdefiniuj modele ML do treningu."""
         models: dict[str, Any] = {
             "Logistic Regression": LogisticRegression(max_iter=1000, class_weight="balanced", random_state=RANDOM_STATE),
             "Decision Tree": DecisionTreeClassifier(max_depth=10, min_samples_split=10, min_samples_leaf=5, class_weight="balanced", random_state=RANDOM_STATE),
@@ -869,13 +911,13 @@ class AdvancedModelTrainer:
         try:
             from lightgbm import LGBMClassifier
 
-            models["LightGBM"] = LGBMClassifier(n_estimators=120, learning_rate=0.1, max_depth=10, class_weight="balanced", random_state=RANDOM_STATE, n_jobs=-1, verbose=-1)
+            models["LightGBM"] = LGBMClassifier(n_estimators=120, learning_rate=0.1, max_depth=10, class_weight="balanced", is_unbalance=True, random_state=RANDOM_STATE, n_jobs=-1, verbose=-1)
         except Exception:
             pass
         try:
             from xgboost import XGBClassifier
 
-            models["XGBoost"] = XGBClassifier(n_estimators=120, learning_rate=0.1, max_depth=10, random_state=RANDOM_STATE, n_jobs=-1, eval_metric="logloss")
+            models["XGBoost"] = XGBClassifier(n_estimators=120, learning_rate=0.1, max_depth=10, random_state=RANDOM_STATE, n_jobs=-1, eval_metric="logloss", tree_method="hist")
         except Exception:
             pass
         return models
@@ -890,15 +932,34 @@ class AdvancedModelTrainer:
         )
         if data.y_train.nunique() < 2:
             raise RuntimeError("Trening wymaga co najmniej dwoch klas docelowych. Sprawdz TARGET_MODE lub dane.")
+        
+        
+        class_counts = data.y_train.value_counts().sort_index()
+        class_ratio = class_counts.iloc[1] / class_counts.iloc[0] if len(class_counts) > 1 else 1.0
+        log_message(f"Dystrybucja klas trenowania: klasa_0={class_counts.iloc[0]}, klasa_1={class_counts.iloc[1]}, ratio={class_ratio:.4f}")
+        
         weights = compute_sample_weight("balanced", data.y_train)
         results: dict[str, Any] = {}
         trained: dict[str, Any] = {}
         models = self.define_models()
         log_message(f"Modele do treningu: {', '.join(models.keys())}")
+        
+        
+        xgb_scale_pos_weight = 1.0
+        if len(class_counts) > 1:
+            xgb_scale_pos_weight = class_counts.iloc[0] / class_counts.iloc[1]
+        
         for name, model in models.items():
             log_message(f"Start treningu modelu: {name}")
             start = time.time()
             try:
+                # Specjalna obsługa XGBoost
+                if name == "XGBoost":
+                    try:
+                        model.set_params(scale_pos_weight=xgb_scale_pos_weight)
+                    except Exception:
+                        pass
+                
                 try:
                     model.fit(data.x_train, data.y_train, sample_weight=weights)
                 except TypeError:
